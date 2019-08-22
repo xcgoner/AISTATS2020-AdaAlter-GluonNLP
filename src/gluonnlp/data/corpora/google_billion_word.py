@@ -67,6 +67,7 @@ class _GBWStream(SimpleDatasetStream):
             bos=bos,
             eos=eos,
             file_sampler=sampler)
+        logging.info('_GBWStream')
 
     def _get_data(self):
         archive_file_name, archive_hash = self._archive_data
