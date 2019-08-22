@@ -28,7 +28,6 @@ import io
 import os
 import tarfile
 import zipfile
-import logging
 
 from mxnet.gluon.utils import _get_repo_file_url, check_sha1, download
 
@@ -67,7 +66,7 @@ class _GBWStream(SimpleDatasetStream):
             bos=bos,
             eos=eos,
             file_sampler=sampler)
-        logging.info('_GBWStream')
+        print('_GBWStream')
 
     def _get_data(self):
         archive_file_name, archive_hash = self._archive_data
@@ -77,7 +76,7 @@ class _GBWStream(SimpleDatasetStream):
             # verify sha1 for all files in the subdir
             sha1 = hashlib.sha1()
             filenames = sorted(glob.glob(self._file_pattern))
-            logging.info('Number of files: {}'.format(len(filenames)))
+            print('Number of files: {}'.format(len(filenames)))
             for filename in filenames:
                 with open(filename, 'rb') as f:
                     while True:
