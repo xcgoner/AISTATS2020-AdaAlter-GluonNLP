@@ -120,8 +120,8 @@ np.random.seed(args.seed)
 #           [mx.gpu(int(x)) for x in args.gpus.split(',')]
 
 os.environ['MXNET_GPU_MEM_POOL_TYPE'] = 'Round'
-os.environ['MXNET_CPU_PARALLEL_RAND_COPY'] = str(len(context))
-os.environ['MXNET_CPU_WORKER_NTHREADS'] = str(len(context))
+# os.environ['MXNET_CPU_PARALLEL_RAND_COPY'] = str(len(context))
+# os.environ['MXNET_CPU_WORKER_NTHREADS'] = str(len(context))
 
 # init hvd
 try:
