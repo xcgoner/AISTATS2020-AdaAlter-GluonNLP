@@ -47,14 +47,39 @@ The following pre-trained BERT models are available from the **gluonnlp.model.ge
 
 where **bert_12_768_12** refers to the BERT BASE model, and **bert_24_1024_16** refers to the BERT LARGE model.
 
+.. code-block:: python
+
+    import gluonnlp as nlp; import mxnet as mx;
+    model, vocab = nlp.model.get_model('bert_12_768_12', dataset_name='book_corpus_wiki_en_uncased', use_classifier=False);
+    tokenizer = nlp.data.BERTTokenizer(vocab, lower=True);
+    transform = nlp.data.BERTSentenceTransform(tokenizer, max_seq_length=512, pair=False, pad=False);
+    sample = transform(['Hello world!']);
+    words, valid_len, segments = mx.nd.array([sample[0]]), mx.nd.array([sample[1]]), mx.nd.array([sample[2]]);
+    seq_encoding, cls_encoding = model(words, segments, valid_len);
+
+Additionally, GluonNLP supports the "`RoBERTa <https://arxiv.org/abs/1907.11692>`_" model:
+
++-----------------------------------------+-------------------+--------------------+
+|                                         | roberta_12_768_12 | roberta_24_1024_16 |
++=========================================+===================+====================+
+| openwebtext_ccnews_stories_books_cased  | ✓                 | ✓                  |
++-----------------------------------------+-------------------+--------------------+
+
+.. code-block:: python
+
+    import gluonnlp as nlp; import mxnet as mx;
+    model, vocab = nlp.model.get_model('roberta_12_768_12', dataset_name='openwebtext_ccnews_stories_books_cased');
+    tokenizer = nlp.data.GPT2BPETokenizer();
+    text = [vocab.bos_token] + tokenizer('Hello world!') + [vocab.eos_token];
+    seq_encoding = model(mx.nd.array([vocab[text]]))
 
 .. hint::
 
    The pre-training, fine-tunining and export scripts are available `here. </model_zoo/bert.zip>`__
 
 
-BERT for Sentence Classification
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Sentence Classification
+~~~~~~~~~~~~~~~~~~~~~~~
 
 GluonNLP provides the following example script to fine-tune sentence classification with pre-trained
 BERT model.
@@ -78,8 +103,8 @@ To enable mixed precision training with float16, set `--dtype` argument to `floa
 
 .. editing URL for the following table: https://tinyurl.com/y5rrowj3
 
-BERT for Question Answering on SQuAD
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Question Answering on SQuAD
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 +---------+-----------------------------------------------------------------------------------------------------------------------------------------+------------------------------------------------------------------------------------------------------------------------------------------+------------------------------------------------------------------------------------------------------------------------------------------+
 | Dataset | SQuAD 1.1                                                                                                                               | SQuAD 1.1                                                                                                                                | SQuAD 2.0                                                                                                                                |
@@ -113,8 +138,8 @@ To get the score of the dev data, you need to download the dev dataset (`dev-v2.
     $ python evaluate-v2.0.py dev-v2.0.json predictions.json
 
 
-BERT Pre-training
-~~~~~~~~~~~~~~~~~
+Pre-training from Scratch
+~~~~~~~~~~~~~~~~~~~~~~~~~
 
 We also provide scripts for pre-training BERT with masked language modeling and and next sentence prediction.
 
@@ -206,8 +231,8 @@ Alternatively, if horovod is not available, you could run pre-training with the 
 
 The BERT base model produced by gluonnlp pre-training script (`log <https://raw.githubusercontent.com/dmlc/web-data/master/gluonnlp/logs/bert/bert_base_pretrain.log>`__) achieves 83.6% on MNLI-mm, 93% on SST-2, 87.99% on MRPC and 80.99/88.60 on SQuAD 1.1 validation set on the books corpus and English wikipedia dataset.
 
-BERT for Named Entity Recognition
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Named Entity Recognition
+~~~~~~~~~~~~~~~~~~~~~~~~
 
 GluonNLP provides training and prediction script for named entity recognition models.
 
@@ -237,14 +262,14 @@ This achieves Test F1 from `91.5` to `92.2` (`log <https://github.com/dmlc/web-d
 Export BERT for Deployment
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Current export/export.py support exporting BERT models. Supported values for --task argument include classification, regression and question_answering.
+Current export.py support exporting BERT models. Supported values for --task argument include classification, regression and question answering.
 
 .. code-block:: console
 
-    $ python export/export.py --task classification --model_parameters /path/to/saved/ckpt.params --output_dir /path/to/output/dir/ --seq_length 128
+    $ python export.py --task classification --model_parameters /path/to/saved/ckpt.params --output_dir /path/to/output/dir/ --seq_length 128
 
 This will export the BERT model for classification to a symbol.json file, saved to the directory specified by --output_dir.
-The --model_parameters argument is optional. If not set, the .params file saved in the output directory will be randomly intialized parameters.
+The --model_parameters argument is optional. If not set, the .params file saved in the output directory will be randomly initialized parameters.
 
 BERT for Sentence or Tokens Embedding
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
