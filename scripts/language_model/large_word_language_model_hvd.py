@@ -109,8 +109,7 @@ if args.test_mode:
     segments = ['test', 'test']
 
 # logging
-level = logging.DEBUG if args.verbose else logging.INFO
-logging.getLogger().setLevel(level)
+logging.getLogger().setLevel(logging.INFO)
 logging.info(args)
 
 logging.info(args)
