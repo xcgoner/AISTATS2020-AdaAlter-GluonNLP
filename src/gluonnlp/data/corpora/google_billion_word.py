@@ -66,7 +66,6 @@ class _GBWStream(SimpleDatasetStream):
             bos=bos,
             eos=eos,
             file_sampler=sampler)
-        print('_GBWStream')
 
     def _get_data(self):
         archive_file_name, archive_hash = self._archive_data
@@ -76,7 +75,6 @@ class _GBWStream(SimpleDatasetStream):
             # verify sha1 for all files in the subdir
             sha1 = hashlib.sha1()
             filenames = sorted(glob.glob(self._file_pattern))
-            print('Number of files: {}'.format(len(filenames)))
             for filename in filenames:
                 with open(filename, 'rb') as f:
                     while True:

@@ -11,7 +11,7 @@ We implement the LSTM 2048-512 language model proposed in the following work.
 @article{jozefowicz2016exploring,
  title={Exploring the Limits of Language Modeling},
  author={Jozefowicz, Rafal and Vinyals, Oriol and Schuster, Mike and Shazeer, Noam and Wu, Yonghui},
- journal={arXiv preprint arXiv:1602.02410},
+ journal={arXiv prelogging.info arXiv:1602.02410},
  year={2016}
 }
 
@@ -41,11 +41,11 @@ import math
 import os
 import sys
 import argparse
+import logging
 import numpy as np
 import mxnet as mx
 from mxnet import gluon, autograd
 import gluonnlp as nlp
-from gluonnlp.utils import Parallel, Parallelizable
 from sampler import LogUniformSampler
 
 curr_path = os.path.dirname(os.path.abspath(os.path.expanduser(__file__)))
@@ -80,8 +80,8 @@ parser.add_argument('--bptt', type=int, default=20,
                     help='sequence length')
 parser.add_argument('--k', type=int, default=8192,
                     help='number of noise samples for estimation')
-parser.add_argument('--gpus', type=str,
-                    help='list of gpus to run, e.g. 0 or 0,2,5. empty means using cpu.')
+# parser.add_argument('--gpus', type=str,
+#                     help='list of gpus to run, e.g. 0 or 0,2,5. empty means using cpu.')
 parser.add_argument('--log-interval', type=int, default=1000,
                     help='report interval')
 parser.add_argument('--seed', type=int, default=0,
@@ -108,7 +108,12 @@ if args.test_mode:
     max_nbatch_eval = 3
     segments = ['test', 'test']
 
-print(args)
+# logging
+level = logging.DEBUG if args.verbose else logging.INFO
+logging.getLogger().setLevel(level)
+logging.info(args)
+
+logging.info(args)
 mx.random.seed(args.seed)
 np.random.seed(args.seed)
 
@@ -139,7 +144,7 @@ context = [ctx]
 # Data stream
 ###############################################################################
 # split data
-num_files = 100
+num_files = 99
 split_sampler = nlp.data.SplitSampler(num_files, num_parts=num_workers, part_index=rank)
 train_data_stream, test_data_stream = \
     [nlp.data.GBWStream(segment=segment, skip_empty=True, bos=None, eos='<eos>', file_sampler=split_sampler)
@@ -165,26 +170,36 @@ def _load(xs):
 # Second, the LSTM-2048-512 model performs importance sampling for decoding
 # during training, we need to sample negative candidate classes by invoking the
 # log uniform sampler.
-def _split_and_sample(x, y):
+# def _split_and_sample(x, y):
+#     m = x != vocab[vocab.padding_token]  # mask padding
+#     num_ctx = len(context)
+#     if num_ctx > 1:
+#         xs = gluon.utils.split_data(x, num_ctx, batch_axis=1, even_split=True)
+#         ys = gluon.utils.split_data(y, num_ctx, batch_axis=1, even_split=True)
+#         ms = gluon.utils.split_data(m, num_ctx, batch_axis=1, even_split=True)
+#     else:
+#         xs, ys, ms = [x], [y], [m]
+#     xs = _load(xs)
+#     ys = _load(ys)
+#     ms = _load(ms)
+#     ss = [sampler(y) for y in ys]
+#     ss = _load(ss)
+#     return xs, ys, ms, ss
+
+def _load_sample(x, y):
     m = x != vocab[vocab.padding_token]  # mask padding
-    num_ctx = len(context)
-    if num_ctx > 1:
-        xs = gluon.utils.split_data(x, num_ctx, batch_axis=1, even_split=True)
-        ys = gluon.utils.split_data(y, num_ctx, batch_axis=1, even_split=True)
-        ms = gluon.utils.split_data(m, num_ctx, batch_axis=1, even_split=True)
-    else:
-        xs, ys, ms = [x], [y], [m]
-    xs = _load(xs)
-    ys = _load(ys)
-    ms = _load(ms)
-    ss = [sampler(y) for y in ys]
+    xs = _load(x)
+    ys = _load(y)
+    ms = _load(m)
+    ss = sampler(y)
     ss = _load(ss)
     return xs, ys, ms, ss
 
 train_batch_size = args.batch_size * len(context)
 train_batchify = nlp.data.batchify.StreamBPTTBatchify(vocab, args.bptt, train_batch_size)
 train_data = train_batchify(train_data_stream)
-train_data = train_data.transform(_split_and_sample)
+# train_data = train_data.transform(_split_and_sample)
+train_data = train_data.transform(_load_sample)
 
 test_batch_size = args.batch_size
 test_batchify = nlp.data.batchify.StreamBPTTBatchify(vocab, args.bptt, test_batch_size)
@@ -195,22 +210,22 @@ test_data = nlp.data.PrefetchingStream(test_data)
 # Build the model
 ###############################################################################
 
-class ParallelBigRNN(Parallelizable):
-    """Data parallel BigRNN model for training."""
-    def __init__(self, rnn, loss_fn):
-        self._model = rnn
-        self._loss = loss_fn
+# class ParallelBigRNN(Parallelizable):
+#     """Data parallel BigRNN model for training."""
+#     def __init__(self, rnn, loss_fn):
+#         self._model = rnn
+#         self._loss = loss_fn
 
-    def forward_backward(self, x):
-        X, y, m, s, h = x
-        with autograd.record():
-            output, hidden, new_target = self._model(X, y, h, s)
-            output = output.reshape((-3, -1))
-            new_target = new_target.reshape((-1,))
-            ls = self._loss(output, new_target) * m.reshape((-1,))
-            ls = ls / args.batch_size
-            ls.backward()
-        return hidden, ls
+#     def forward_backward(self, x):
+#         X, y, m, s, h = x
+#         with autograd.record():
+#             output, hidden, new_target = self._model(X, y, h, s)
+#             output = output.reshape((-3, -1))
+#             new_target = new_target.reshape((-1,))
+#             ls = self._loss(output, new_target) * m.reshape((-1,))
+#             ls = ls / args.batch_size
+#             ls.backward()
+#         return hidden, ls
 
 eval_model = nlp.model.language_model.BigRNN(ntokens, args.emsize, args.nhid,
                                              args.nlayers, args.nproj,
@@ -229,30 +244,32 @@ loss = gluon.loss.SoftmaxCrossEntropyLoss()
 def train():
     """Training loop for language model.
     """
-    print(model)
+    # logging.info(model)
+    hvd.broadcast_parameters(model.collect_params(), root_rank=0)
     from_epoch = 0
     model.initialize(mx.init.Xavier(factor_type='out'), ctx=context)
     trainer_params = {'learning_rate': args.lr, 'wd': 0, 'eps': args.eps}
-    trainer = gluon.Trainer(model.collect_params(), 'adagrad', trainer_params)
+    # trainer = gluon.Trainer(model.collect_params(), 'adagrad', trainer_params)
+    trainer = hvd.DistributedTrainer(model.collect_params(), 'adagrad', trainer_params)
     if args.from_epoch:
         from_epoch = args.from_epoch
         checkpoint_name = '%s.%s'%(args.save, format(from_epoch - 1, '02d'))
         model.load_parameters(checkpoint_name)
         trainer.load_states('%s.state'%args.save)
-        print('Loaded parameters from checkpoint %s'%(checkpoint_name))
+        logging.info('Loaded parameters from checkpoint %s'%(checkpoint_name))
 
     model.hybridize(static_alloc=True, static_shape=True)
     encoder_params = model.encoder.collect_params().values()
     embedding_params = list(model.embedding.collect_params().values())
-    parallel_model = ParallelBigRNN(model, loss)
-    parallel = Parallel(len(context), parallel_model)
+    # parallel_model = ParallelBigRNN(model, loss)
+    # parallel = Parallel(len(context), parallel_model)
     for epoch in range(from_epoch, args.epochs):
         sys.stdout.flush()
         total_L = 0.0
         start_epoch_time = time.time()
         start_log_interval_time = time.time()
-        hiddens = [model.begin_state(batch_size=args.batch_size,
-                                     func=mx.nd.zeros, ctx=ctx) for ctx in context]
+        hiddens = model.begin_state(batch_size=args.batch_size,
+                                     func=mx.nd.zeros, ctx=ctx)
         nbatch = 0
         has_next = True
         train_data_iter = iter(train_data)
@@ -261,16 +278,24 @@ def train():
         while has_next:
             nbatch += 1
             hiddens = detach(hiddens)
-            Ls = []
-            for _, batch in enumerate(zip(data, target, mask, sample, hiddens)):
-                parallel.put(batch)
+            # Ls = []
+            # for _, batch in enumerate(zip(data, target, mask, sample, hiddens)):
+            #     parallel.put(batch)
 
-            for _ in range(len(data)):
-                hidden, ls = parallel.get()
-                # hidden states are ordered by context id
-                index = context.index(hidden[0].context)
-                hiddens[index] = hidden
-                Ls.append(ls)
+            # for _ in range(len(data)):
+            #     hidden, ls = parallel.get()
+            #     # hidden states are ordered by context id
+            #     index = context.index(hidden[0].context)
+            #     hiddens[index] = hidden
+            #     Ls.append(ls)
+
+            with autograd.record():
+                output, hidden, new_target = model(data, target, hiddens, sample)
+                output = output.reshape((-3, -1))
+                new_target = new_target.reshape((-1,))
+                ls = loss(output, new_target) * mask.reshape((-1,))
+                ls = ls / args.batch_size
+                ls.backward()
 
             # prefetch the next batch of data
             try:
@@ -288,12 +313,13 @@ def train():
 
             trainer.step(len(context))
 
-            total_L += sum([mx.nd.sum(L).asscalar() / args.bptt for L in Ls])
+            # total_L += sum([mx.nd.sum(L).asscalar() / args.bptt for L in Ls])
+            total_L += mx.nd.sum(ls).asscalar() / args.bptt
 
             if nbatch % args.log_interval == 0:
                 cur_L = total_L / args.log_interval / len(context)
                 ppl = math.exp(cur_L) if cur_L < 100 else float('inf')
-                print('[Epoch %d Batch %d] loss %.2f, ppl %.2f, '
+                logging.info('[Epoch %d Batch %d] loss %.2f, ppl %.2f, '
                       'throughput %.2f samples/s'
                       %(epoch, nbatch, cur_L, ppl,
                         train_batch_size*args.log_interval/(time.time()-start_log_interval_time)))
@@ -302,7 +328,7 @@ def train():
                 sys.stdout.flush()
 
         end_epoch_time = time.time()
-        print('Epoch %d took %.2f seconds.'%(epoch, end_epoch_time - start_epoch_time))
+        logging.info('Epoch %d took %.2f seconds.'%(epoch, end_epoch_time - start_epoch_time))
         mx.nd.waitall()
         checkpoint_name = '%s.%s'%(args.save, format(epoch, '02d'))
         model.save_parameters(checkpoint_name)
@@ -353,35 +379,35 @@ def test(data_stream, batch_size, ctx=None):
             avg_scalar = float(avg.asscalar())
             ppl = math.exp(avg_scalar)
             throughput = batch_size*args.log_interval/(time.time()-start_time)
-            print('Evaluation batch %d: test loss %.2f, test ppl %.2f, '
+            logging.info('Evaluation batch %d: test loss %.2f, test ppl %.2f, '
                   'throughput = %.2f samples/s'%(nbatch, avg_scalar, ppl, throughput))
             start_time = time.time()
         if max_nbatch_eval and nbatch > max_nbatch_eval:
-            print('Quit evaluation early at batch %d'%nbatch)
+            logging.info('Quit evaluation early at batch %d'%nbatch)
             break
     return float(avg.asscalar())
 
 def evaluate():
     """ Evaluate loop for the trained model """
-    print(eval_model)
+    logging.info(eval_model)
     eval_model.initialize(mx.init.Xavier(), ctx=context[0])
     eval_model.hybridize(static_alloc=True, static_shape=True)
     epoch = args.from_epoch if args.from_epoch else 0
     while epoch < args.epochs:
         checkpoint_name = '%s.%s'%(args.save, format(epoch, '02d'))
         if not os.path.exists(checkpoint_name):
-            print('Wait for a new checkpoint...')
+            logging.info('Wait for a new checkpoint...')
             # check again after 600 seconds
             time.sleep(600)
             continue
         eval_model.load_parameters(checkpoint_name)
-        print('Loaded parameters from checkpoint %s'%(checkpoint_name))
+        logging.info('Loaded parameters from checkpoint %s'%(checkpoint_name))
         start_epoch_time = time.time()
         final_test_L = test(test_data, test_batch_size, ctx=context[0])
         end_epoch_time = time.time()
-        print('[Epoch %d] test loss %.2f, test ppl %.2f'%
+        logging.info('[Epoch %d] test loss %.2f, test ppl %.2f'%
               (epoch, final_test_L, math.exp(final_test_L)))
-        print('Epoch %d took %.2f seconds.'%(epoch, end_epoch_time - start_epoch_time))
+        logging.info('Epoch %d took %.2f seconds.'%(epoch, end_epoch_time - start_epoch_time))
         sys.stdout.flush()
         epoch += 1
 
