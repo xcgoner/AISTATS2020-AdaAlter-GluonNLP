@@ -22,7 +22,7 @@ from mxnet.optimizer import Optimizer, register
 from mxnet.ndarray import zeros, NDArray
 from mxnet.ndarray import square, power, sqrt, maximum, minimum, clip
 
-__all__ = ['LAMB']
+__all__ = ['AdaAlter']
 
 
 @register
