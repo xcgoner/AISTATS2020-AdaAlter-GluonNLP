@@ -112,7 +112,6 @@ if args.test_mode:
 logging.getLogger().setLevel(logging.INFO)
 logging.info(args)
 
-logging.info(args)
 mx.random.seed(args.seed)
 np.random.seed(args.seed)
 
@@ -244,9 +243,9 @@ def train():
     """Training loop for language model.
     """
     # logging.info(model)
-    hvd.broadcast_parameters(model.collect_params(), root_rank=0)
     from_epoch = 0
     model.initialize(mx.init.Xavier(factor_type='out'), ctx=context)
+    hvd.broadcast_parameters(model.collect_params(), root_rank=0)
     trainer_params = {'learning_rate': args.lr, 'wd': 0, 'eps': args.eps}
     # trainer = gluon.Trainer(model.collect_params(), 'adagrad', trainer_params)
     trainer = hvd.DistributedTrainer(model.collect_params(), 'adagrad', trainer_params)
