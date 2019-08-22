@@ -28,6 +28,7 @@ import io
 import os
 import tarfile
 import zipfile
+import logging
 
 from mxnet.gluon.utils import _get_repo_file_url, check_sha1, download
 
@@ -39,7 +40,7 @@ from ...base import get_home_dir
 
 
 class _GBWStream(SimpleDatasetStream):
-    def __init__(self, namespace, segment, bos, eos, skip_empty, root):
+    def __init__(self, namespace, segment, bos, eos, skip_empty, root, file_sampler='random'):
         """Directory layout:
            - root ($MXNET_HOME/datasets/gbw)
              - archive_file (1-billion-word-language-modeling-benchmark-r13output.tar.gz)
@@ -58,7 +59,7 @@ class _GBWStream(SimpleDatasetStream):
         self._file_pattern = os.path.join(self._subdir, pattern)
         self._data_hash = data_hash
         self._get_data()
-        sampler = 'sequential' if segment != 'train' else 'random'
+        sampler = 'sequential' if segment != 'train' else file_sampler
         super(_GBWStream, self).__init__(
             dataset=CorpusDataset,
             file_pattern=self._file_pattern,
@@ -75,6 +76,7 @@ class _GBWStream(SimpleDatasetStream):
             # verify sha1 for all files in the subdir
             sha1 = hashlib.sha1()
             filenames = sorted(glob.glob(self._file_pattern))
+            logging.info('Number of files: {}'.format(len(filenames)))
             for filename in filenames:
                 with open(filename, 'rb') as f:
                     while True:
@@ -133,7 +135,7 @@ class GBWStream(_GBWStream):
         MXNET_HOME defaults to '~/.mxnet'.
     """
     def __init__(self, segment='train', skip_empty=True, bos=None, eos=C.EOS_TOKEN,
-                 root=os.path.join(get_home_dir(), 'datasets', 'gbw')):
+                 root=os.path.join(get_home_dir(), 'datasets', 'gbw'), file_sampler='random'):
         self._archive_data = ('1-billion-word-language-modeling-benchmark-r13output.tar.gz',
                               '4df859766482e12264a5a9d9fb7f0e276020447d')
         self._archive_vocab = ('gbw-ebb1a287.zip',
@@ -146,7 +148,7 @@ class GBWStream(_GBWStream):
                                     '0a8e2b7496ba0b5c05158f282b9b351356875445')}
         self._vocab_file = ('gbw-ebb1a287.vocab',
                             'ebb1a287ca14d8fa6f167c3a779e5e7ed63ac69f')
-        super(GBWStream, self).__init__('gbw', segment, bos, eos, skip_empty, root)
+        super(GBWStream, self).__init__('gbw', segment, bos, eos, skip_empty, root, file_sampler=file_sampler)
 
     @property
     def vocab(self):

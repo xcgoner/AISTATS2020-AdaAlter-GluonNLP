@@ -22,5 +22,6 @@
 
 from .bert_adam import *
 from .lamb import *
+from .adaalter import *
 
-__all__ = bert_adam.__all__ + lamb.__all__
+__all__ = bert_adam.__all__ + lamb.__all__ + adaalter.__all__
