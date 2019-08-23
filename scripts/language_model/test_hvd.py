@@ -70,7 +70,7 @@ is_master_node = rank == local_rank
 ctx = mx.gpu(local_rank)
 context = [ctx]
 
-x = mx.nd.zeros((2,num_workers), ctx)
+x = mx.nd.zeros((1, num_workers), ctx)
 x[0, rank] = 2
 x_row_sparse = x.tostype('row_sparse')
 mx.nd.waitall()
