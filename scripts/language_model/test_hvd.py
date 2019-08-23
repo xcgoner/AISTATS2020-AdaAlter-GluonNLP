@@ -78,6 +78,6 @@ mx.nd.waitall()
 logging.info(x)
 logging.info(x_row_sparse)
 
-x_gathered = nvd.allgather(x_row_sparse)
+x_gathered = hvd.allgather(x_row_sparse)
 mx.nd.waitall()
 logging.info(x_gathered)
