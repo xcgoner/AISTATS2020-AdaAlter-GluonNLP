@@ -49,7 +49,6 @@ import gluonnlp as nlp
 
 # logging
 logging.getLogger().setLevel(logging.INFO)
-logging.info(args)
 
 os.environ['MXNET_GPU_MEM_POOL_TYPE'] = 'Round'
 # os.environ['MXNET_CPU_PARALLEL_RAND_COPY'] = str(len(context))
