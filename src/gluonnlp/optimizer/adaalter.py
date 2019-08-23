@@ -65,12 +65,12 @@ class AdaAlter(Optimizer):
         history = state
 
         if is_sparse:
-            # kwargs = {'epsilon': self.float_stable_eps,
-            #           'rescale_grad': self.rescale_grad}
-            # if self.clip_gradient:
-            #     kwargs['clip_gradient'] = self.clip_gradient
-            # sparse.adagrad_update(weight, grad, history, out=weight, lr=lr, wd=wd, **kwargs)
-            raise NotImplementedError('AdaAlter has not been implemented for sparse nd')
+            kwargs = {'epsilon': self.float_stable_eps,
+                      'rescale_grad': self.rescale_grad}
+            if self.clip_gradient:
+                kwargs['clip_gradient'] = self.clip_gradient
+            sparse.adaalter_update(weight, grad, history, out=weight, lr=lr, wd=wd, **kwargs)
+            # raise NotImplementedError('AdaAlter has not been implemented for sparse nd')
         else:
             grad = grad * self.rescale_grad
             if self.clip_gradient is not None:
