@@ -50,7 +50,7 @@ import gluonnlp as nlp
 # logging
 logging.getLogger().setLevel(logging.INFO)
 
-os.environ['MXNET_GPU_MEM_POOL_TYPE'] = 'Round'
+# os.environ['MXNET_GPU_MEM_POOL_TYPE'] = 'Round'
 # os.environ['MXNET_CPU_PARALLEL_RAND_COPY'] = str(len(context))
 # os.environ['MXNET_CPU_WORKER_NTHREADS'] = str(len(context))
 
@@ -71,7 +71,7 @@ ctx = mx.gpu(local_rank)
 context = [ctx]
 
 x = mx.nd.zeros((2,num_workers), ctx)
-x[1, rank] = 2
+x[0, rank] = 2
 x_row_sparse = x.tostype('row_sparse')
 mx.nd.waitall()
 
