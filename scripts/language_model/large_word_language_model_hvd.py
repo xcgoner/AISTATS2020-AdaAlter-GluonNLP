@@ -228,8 +228,7 @@ test_data = nlp.data.PrefetchingStream(test_data)
 eval_model = nlp.model.language_model.BigRNN(ntokens, args.emsize, args.nhid,
                                              args.nlayers, args.nproj,
                                              embed_dropout=args.dropout,
-                                             encode_dropout=args.dropout, 
-                                             sparse_weight=False, sparse_grad=False)
+                                             encode_dropout=args.dropout)
 model = nlp.model.language_model.train.BigRNN(ntokens, args.emsize, args.nhid,
                                               args.nlayers, args.nproj, args.k,
                                               embed_dropout=args.dropout,
