@@ -86,6 +86,8 @@ parser.add_argument('--log-interval', type=int, default=1000,
                     help='report interval')
 parser.add_argument('--seed', type=int, default=0,
                     help='random seed')
+parser.add_argument('--optimizer', type=str, default='adagrad',
+                    help='optimizer')
 parser.add_argument('--lr', type=float, default=0.2,
                     help='initial learning rate')
 parser.add_argument('--clip', type=float, default=1.0,
@@ -214,7 +216,7 @@ def train():
     from_epoch = 0
     model.initialize(mx.init.Xavier(factor_type='out'), ctx=context)
     trainer_params = {'learning_rate': args.lr, 'wd': 0, 'eps': args.eps}
-    trainer = gluon.Trainer(model.collect_params(), 'adagrad', trainer_params)
+    trainer = gluon.Trainer(model.collect_params(), args.optimizer, trainer_params)
     if args.from_epoch:
         from_epoch = args.from_epoch
         checkpoint_name = '%s.%s'%(args.save, format(from_epoch - 1, '02d'))
