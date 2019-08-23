@@ -78,6 +78,9 @@ mx.nd.waitall()
 logging.info(x)
 logging.info(x_row_sparse)
 
-x_row_sparse[:] = hvd.allreduce(x)
+hvd.allgather(x)
 mx.nd.waitall()
-logging.info(data)
+
+# x_row_sparse[:] = hvd.allreduce(x)
+# mx.nd.waitall()
+# logging.info(data)
