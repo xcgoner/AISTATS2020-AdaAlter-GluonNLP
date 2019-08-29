@@ -77,7 +77,7 @@ mx.nd.waitall()
 
 logging.info(x_row_sparse.indices.shape)
 
-n_entres = x_row_sparse.indices.shape[0]
+n_entres = mx.nd.array(x_row_sparse.indices.shape[0])
 
 hvd.allreduce_(n_entres)
 mx.nd.waitall()
