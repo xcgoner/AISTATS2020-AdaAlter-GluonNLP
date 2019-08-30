@@ -75,13 +75,8 @@ x[0, rank] = 2
 x_row_sparse = x.tostype('row_sparse')
 mx.nd.waitall()
 
-logging.info(x_row_sparse.indices.shape)
+logging.info(x)
 
-n_entres = mx.nd.array(x_row_sparse.indices.shape[0])
-
-n_entres = mx.nd.array(rank)
-
-logging.info(n_entres)
-hvd.allreduce_(n_entres, average=False)
+hvd.allreduce_(x, average=False)
 mx.nd.waitall()
-logging.info(n_entres)
+logging.info(x)
