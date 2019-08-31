@@ -71,7 +71,7 @@ ctx = mx.gpu(local_rank)
 context = [ctx]
 
 x = mx.nd.zeros((num_workers,4), ctx)
-x[rank][2] = rank+1
+x[0][2] = rank+1
 rsp = x.tostype('row_sparse')
 mx.nd.waitall()
 
