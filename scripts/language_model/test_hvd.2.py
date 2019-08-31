@@ -77,6 +77,6 @@ mx.nd.waitall()
 
 logging.info(x)
 
-reduced_rsp = hvd.allreduce_rs(rsp)
+reduced_rsp = hvd.allreduce_rsp(rsp)
 mx.nd.waitall()
 logging.info(reduced_rsp.tostype('default'))
