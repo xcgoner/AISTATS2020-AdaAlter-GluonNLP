@@ -70,9 +70,7 @@ is_master_node = rank == local_rank
 ctx = mx.gpu(local_rank)
 context = [ctx]
 
-x = mx.nd.zeros((1, num_workers), ctx)
-x[0, rank] = 2
-x_row_sparse = x.tostype('row_sparse')
+x = mx.nd.ones((rank+1, 4), ctx) * rank
 mx.nd.waitall()
 
 logging.info(x)
