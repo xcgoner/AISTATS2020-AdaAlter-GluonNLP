@@ -42,16 +42,16 @@ class DistributedRspTrainer(mx.gluon.Trainer):
             params, optimizer, optimizer_params=optimizer_params)
 
     def _allreduce_grads(self):
-        for i, param in enumerate(self._params):
-            if param.grad_req != 'null':
-                if param.list_grad()[0].stype == 'default':
-                    allreduce_(param.list_grad()[0], average=True,
-                            name=str(i), priority=-i)
-                elif param.list_grad()[0].stype == 'row_sparse':
-                    param.list_grad()[0] = allreduce_rsp(param.list_grad()[0], average=True,
-                                                         name=str(i), priority=-i)
-                else:
-                    raise NotImplementedError('DistributedRspTrainer has not been implemented for {} nd'.format(param.list_grad()[0].stype))
+        # for i, param in enumerate(self._params):
+        #     if param.grad_req != 'null':
+        #         if param.list_grad()[0].stype == 'default':
+        #             allreduce_(param.list_grad()[0], average=True,
+        #                     name=str(i), priority=-i)
+        #         elif param.list_grad()[0].stype == 'row_sparse':
+        #             param.list_grad()[0] = allreduce_rsp(param.list_grad()[0], average=True,
+        #                                                  name=str(i), priority=-i)
+        #         else:
+        #             raise NotImplementedError('DistributedRspTrainer has not been implemented for {} nd'.format(param.list_grad()[0].stype))
 
 # Wrapper to inject Horovod broadcast after parameter initialization
 def _append_broadcast_init(param, root_rank):
