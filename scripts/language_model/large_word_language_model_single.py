@@ -203,8 +203,8 @@ def train():
         total_L = 0.0
         start_epoch_time = time.time()
         start_log_interval_time = time.time()
-        hiddens = [model.begin_state(batch_size=args.batch_size,
-                                     func=mx.nd.zeros, ctx=ctx)]
+        hidden = model.begin_state(batch_size=args.batch_size,
+                                     func=mx.nd.zeros, ctx=ctx)
         nbatch = 0
         has_next = True
         train_data_iter = iter(train_data)
@@ -212,17 +212,15 @@ def train():
 
         while has_next:
             nbatch += 1
-            hiddens = detach(hiddens)
+            hidden = detach(hidden)
 
             with autograd.record():
-                output, hidden, new_target = model(data, target, hiddens[0], sample)
+                output, hidden, new_target = model(data, target, hidden, sample)
                 output = output.reshape((-3, -1))
                 new_target = new_target.reshape((-1,))
                 ls = loss(output, new_target) * mask.reshape((-1,))
                 ls = ls / args.batch_size
                 ls.backward()
-
-            hiddens[0] = hidden
 
             # prefetch the next batch of data
             try:
