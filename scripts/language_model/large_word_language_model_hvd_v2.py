@@ -211,7 +211,9 @@ def train():
     from_epoch = 0
     model.initialize(mx.init.Xavier(factor_type='out'), ctx=ctx)
     trainer_params = {'learning_rate': args.lr, 'wd': 0, 'eps': args.eps}
-    trainer = gluon.Trainer(model.collect_params(), args.optimizer, trainer_params)
+    # trainer = gluon.Trainer(model.collect_params(), args.optimizer, trainer_params)
+    trainer = DistributedRspTrainer(model.collect_params(), , args.optimizer, trainer_params)
+
     if args.from_epoch:
         from_epoch = args.from_epoch
         checkpoint_name = '%s.%s'%(args.save, format(from_epoch - 1, '02d'))

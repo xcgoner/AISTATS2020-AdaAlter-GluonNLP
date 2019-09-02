@@ -41,7 +41,7 @@ class DistributedRspTrainer(mx.gluon.Trainer):
         super(DistributedRspTrainer, self).__init__(
             params, optimizer, optimizer_params=optimizer_params)
 
-    def _allreduce_grads(self):
+    # def _allreduce_grads(self):
         # for i, param in enumerate(self._params):
         #     if param.grad_req != 'null':
         #         if param.list_grad()[0].stype == 'default':
@@ -52,7 +52,6 @@ class DistributedRspTrainer(mx.gluon.Trainer):
         #                                                  name=str(i), priority=-i)
         #         else:
         #             raise NotImplementedError('DistributedRspTrainer has not been implemented for {} nd'.format(param.list_grad()[0].stype))
-        pass
 
 # Wrapper to inject Horovod broadcast after parameter initialization
 def _append_broadcast_init(param, root_rank):
