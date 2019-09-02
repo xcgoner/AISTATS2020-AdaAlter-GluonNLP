@@ -42,21 +42,21 @@ class DistributedRspTrainer(mx.gluon.Trainer):
             params, optimizer, optimizer_params=optimizer_params)
 
     def _allreduce_grads(self):
-        # super(DistributedRspTrainer, self)._allreduce_grads()
-        for i, param in enumerate(self._params):
-            if param.grad_req != 'null':
-                if param.list_grad()[0].stype == 'default':
-                    pass
-                    # allreduce_(param.list_grad()[0], average=True,
-                    #         name=str(i), priority=-i)
-                elif param.list_grad()[0].stype == 'row_sparse':
-                    self._kvstore.push(i, param.list_grad(), priority=-i)
-                    self._kvstore.pull(i, param.list_grad(), priority=-i,
-                                       ignore_sparse=False)
-                    # param.list_grad()[0] = allreduce_rsp(param.list_grad()[0], average=True,
-                                                        #  name=str(i), priority=-i)
-                else:
-                    raise NotImplementedError('DistributedRspTrainer has not been implemented for {} nd'.format(param.list_grad()[0].stype))
+        super(DistributedRspTrainer, self)._allreduce_grads()
+        # for i, param in enumerate(self._params):
+        #     if param.grad_req != 'null':
+        #         if param.list_grad()[0].stype == 'default':
+        #             pass
+        #             # allreduce_(param.list_grad()[0], average=True,
+        #             #         name=str(i), priority=-i)
+        #         elif param.list_grad()[0].stype == 'row_sparse':
+        #             self._kvstore.push(i, param.list_grad(), priority=-i)
+        #             self._kvstore.pull(i, param.list_grad(), priority=-i,
+        #                                ignore_sparse=False)
+        #             # param.list_grad()[0] = allreduce_rsp(param.list_grad()[0], average=True,
+        #                                                 #  name=str(i), priority=-i)
+        #         else:
+        #             raise NotImplementedError('DistributedRspTrainer has not been implemented for {} nd'.format(param.list_grad()[0].stype))
 
 # Wrapper to inject Horovod broadcast after parameter initialization
 def _append_broadcast_init(param, root_rank):
