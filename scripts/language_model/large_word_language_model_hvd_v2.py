@@ -122,8 +122,6 @@ np.random.seed(args.seed)
 random.seed(args.seed)
 mx.random.seed(args.seed)
 
-# context = [mx.gpu(0)]
-ctx = mx.gpu(0)
 
 os.environ['MXNET_GPU_MEM_POOL_TYPE'] = 'Round'
 os.environ['MXNET_CPU_PARALLEL_RAND_COPY'] = str(1)
@@ -141,6 +139,8 @@ num_workers = hvd.size()
 rank = hvd.rank()
 local_rank = hvd.local_rank()
 is_master_node = rank == local_rank
+
+ctx = mx.gpu(local_rank)
 
 ###############################################################################
 # Data stream
