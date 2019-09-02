@@ -79,4 +79,4 @@ logging.info(x)
 
 broadcasted_rsp = hvd.broadcast_rsp(rsp, root_rank=1)
 mx.nd.waitall()
-logging.info(reduced_rsp.tostype('default'))
+logging.info(broadcasted_rsp.tostype('default'))
