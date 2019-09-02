@@ -129,6 +129,19 @@ os.environ['MXNET_GPU_MEM_POOL_TYPE'] = 'Round'
 os.environ['MXNET_CPU_PARALLEL_RAND_COPY'] = str(1)
 os.environ['MXNET_CPU_WORKER_NTHREADS'] = str(1)
 
+# init hvd
+try:
+    import horovod.mxnet as hvd
+except ImportError:
+    logging.info('horovod must be installed.')
+    exit()
+hvd.init()
+store = None
+num_workers = hvd.size()
+rank = hvd.rank()
+local_rank = hvd.local_rank()
+is_master_node = rank == local_rank
+
 ###############################################################################
 # Data stream
 ###############################################################################
