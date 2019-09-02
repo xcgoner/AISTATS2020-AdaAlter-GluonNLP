@@ -285,7 +285,7 @@ def train():
 
         while has_next:
             nbatch += 1
-            hidden = hidden.detach()
+            hidden = detach(hidden)
             # Ls = []
             # for _, batch in enumerate(zip(data, target, mask, sample, hiddens)):
             #     parallel.put(batch)
@@ -343,12 +343,12 @@ def train():
         model.save_parameters(checkpoint_name)
         trainer.save_states('%s.state'%args.save)
 
-# def detach(hidden):
-#     if isinstance(hidden, (tuple, list)):
-#         hidden = [detach(h) for h in hidden]
-#     else:
-#         hidden = hidden.detach()
-#     return hidden
+def detach(hidden):
+    if isinstance(hidden, (tuple, list)):
+        hidden = [detach(h) for h in hidden]
+    else:
+        hidden = hidden.detach()
+    return hidden
 
 def test(data_stream, batch_size, ctx=None):
     """Evaluate the model on the dataset.
@@ -377,7 +377,7 @@ def test(data_stream, batch_size, ctx=None):
         target = target.as_in_context(ctx)
         mask = data != vocab[vocab.padding_token]
         output, hidden = eval_model(data, hidden)
-        hidden = hidden.detach()
+        hidden = detach(hidden)
         output = output.reshape((-3, -1))
         L = loss(output, target.reshape(-1,)) * mask.reshape((-1,))
         total_L += L.mean()
