@@ -39,6 +39,7 @@ We implement the LSTM 2048-512 language model proposed in the following work.
 import time
 import math
 import os
+import random
 import sys
 import argparse
 import logging
