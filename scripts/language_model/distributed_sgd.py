@@ -41,6 +41,7 @@ class DistributedRspTrainer(mx.gluon.Trainer):
         super(DistributedRspTrainer, self).__init__(
             params, optimizer, optimizer_params=optimizer_params, kvstore='local')
 
+        self._hvd_param_buf = {}
 
     def _allreduce_grads(self):
         super(DistributedRspTrainer, self)._allreduce_grads()
@@ -49,7 +50,19 @@ class DistributedRspTrainer(mx.gluon.Trainer):
                 if param.list_grad()[0].stype == 'default':
                     allreduce_(param.list_grad()[0], average=True,
                                name=str(i), priority=-i)
+                else:
+                    if i not in self._hvd_param_buf:
+                        self._hvd_param_buf[i] = mx.nd.zeros(param.list_grad()[0].shape, param.list_grad()[0].context, dtype=param.list_grad()[0].dtype)
+                    param_dense = self._hvd_param_buf[i]
+                    param_dense[:] = param.list_grad()[0]
+                    allreduce_(param_dense, average=True,
+                                name=str(i), priority=-i)
 
+        for i, param in enumerate(self._params):
+            if param.grad_req != 'null':
+                if param.list_grad()[0].stype != 'default':
+                    if i in self._hvd_param_buf:
+                        param.list_grad()[0][:] = self._hvd_param_buf[i]
 
 # Wrapper to inject Horovod broadcast after parameter initialization
 def _append_broadcast_init(param, root_rank):
