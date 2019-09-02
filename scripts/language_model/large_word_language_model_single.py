@@ -132,7 +132,10 @@ ntokens = len(vocab)
 sampler = LogUniformSampler(ntokens, args.k)
 
 def _load(x):
-    return x.as_in_context(ctx)
+    if isinstance(x, tuple):
+        return [y.as_in_context(ctx) for y in x]
+    else:
+        return x.as_in_context(ctx)
 
 # Transformation for a data batch for training.
 # First, load the data, target and mask to target contexts.
@@ -145,7 +148,6 @@ def _load_sample(x, y):
     ys = _load(y)
     ms = _load(m)
     ss = sampler(y)
-    print(ss.shape)
     ss = _load(ss)
     return xs, ys, ms, ss
 
