@@ -39,7 +39,7 @@ class DistributedRspTrainer(mx.gluon.Trainer):
                           "as its optimizer. We have unwrapped it for you.")
 
         super(DistributedRspTrainer, self).__init__(
-            params, optimizer, optimizer_params=optimizer_params)
+            params, optimizer, optimizer_params=optimizer_params, kvstore='local')
 
 
     def _allreduce_grads(self):
