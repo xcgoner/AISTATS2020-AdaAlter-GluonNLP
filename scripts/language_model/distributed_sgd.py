@@ -41,7 +41,8 @@ class DistributedRspTrainer(mx.gluon.Trainer):
         super(DistributedRspTrainer, self).__init__(
             params, optimizer, optimizer_params=optimizer_params)
 
-    # def _allreduce_grads(self):
+    def _allreduce_grads(self):
+        pass
         # for i, param in enumerate(self._params):
         #     if param.grad_req != 'null':
         #         if param.list_grad()[0].stype == 'default':
