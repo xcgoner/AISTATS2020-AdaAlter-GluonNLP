@@ -122,8 +122,10 @@ os.environ['MXNET_CPU_WORKER_NTHREADS'] = str(1)
 ###############################################################################
 # Data stream
 ###############################################################################
+num_files = 99
+split_sampler = nlp.data.SplitSampler(num_files, num_parts=1, part_index=0)
 train_data_stream, test_data_stream = \
-    [nlp.data.GBWStream(segment=segment, skip_empty=True, bos=None, eos='<eos>')
+    [nlp.data.GBWStream(segment=segment, skip_empty=True, bos=None, eos='<eos>', file_sampler=split_sampler)
      for segment in segments]
 vocab = train_data_stream.vocab
 ntokens = len(vocab)
