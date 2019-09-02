@@ -145,26 +145,19 @@ def _load(xs):
 # Second, the LSTM-2048-512 model performs importance sampling for decoding
 # during training, we need to sample negative candidate classes by invoking the
 # log uniform sampler.
-def _split_and_sample(x, y):
+def _load_sample(x, y):
     m = x != vocab[vocab.padding_token]  # mask padding
-    num_ctx = len(context)
-    if num_ctx > 1:
-        xs = gluon.utils.split_data(x, num_ctx, batch_axis=1, even_split=True)
-        ys = gluon.utils.split_data(y, num_ctx, batch_axis=1, even_split=True)
-        ms = gluon.utils.split_data(m, num_ctx, batch_axis=1, even_split=True)
-    else:
-        xs, ys, ms = [x], [y], [m]
-    xs = _load(xs)
-    ys = _load(ys)
-    ms = _load(ms)
-    ss = [sampler(y) for y in ys]
+    xs = _load(x)
+    ys = _load(y)
+    ms = _load(m)
+    ss = sampler(y)
     ss = _load(ss)
     return xs, ys, ms, ss
 
 train_batch_size = args.batch_size * len(context)
 train_batchify = nlp.data.batchify.StreamBPTTBatchify(vocab, args.bptt, train_batch_size)
 train_data = train_batchify(train_data_stream)
-train_data = train_data.transform(_split_and_sample)
+train_data = train_data.transform(_load_sample)
 
 test_batch_size = args.batch_size
 test_batchify = nlp.data.batchify.StreamBPTTBatchify(vocab, args.bptt, test_batch_size)
@@ -174,23 +167,6 @@ test_data = nlp.data.PrefetchingStream(test_data)
 ###############################################################################
 # Build the model
 ###############################################################################
-
-# class ParallelBigRNN(Parallelizable):
-#     """Data parallel BigRNN model for training."""
-#     def __init__(self, rnn, loss_fn):
-#         self._model = rnn
-#         self._loss = loss_fn
-
-#     def forward_backward(self, x):
-#         X, y, m, s, h = x
-#         with autograd.record():
-#             output, hidden, new_target = self._model(X, y, h, s)
-#             output = output.reshape((-3, -1))
-#             new_target = new_target.reshape((-1,))
-#             ls = self._loss(output, new_target) * m.reshape((-1,))
-#             ls = ls / args.batch_size
-#             ls.backward()
-#         return hidden, ls
 
 eval_model = nlp.model.language_model.BigRNN(ntokens, args.emsize, args.nhid,
                                              args.nlayers, args.nproj,
@@ -242,10 +218,10 @@ def train():
             hiddens = detach(hiddens)
 
             with autograd.record():
-                output, hidden, new_target = model(data[0], target[0], hiddens[0], sample[0])
+                output, hidden, new_target = model(data, target, hiddens, sample)
                 output = output.reshape((-3, -1))
                 new_target = new_target.reshape((-1,))
-                ls = loss(output, new_target) * mask[0].reshape((-1,))
+                ls = loss(output, new_target) * mask.reshape((-1,))
                 ls = ls / args.batch_size
                 ls.backward()
 
