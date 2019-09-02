@@ -51,8 +51,7 @@ class DistributedRspTrainer(mx.gluon.Trainer):
                     pass
                 elif param.list_grad()[0].stype == 'row_sparse':
                     self._kvstore.push(i, param.list_grad(), priority=-i)
-                    if not self._update_on_kvstore:
-                        self._kvstore.pull(i, param.list_grad(), priority=-i)
+                    self._kvstore.pull(i, param.list_grad(), priority=-i)
                     # param.list_grad()[0] = allreduce_rsp(param.list_grad()[0], average=True,
                                                         #  name=str(i), priority=-i)
                 else:
