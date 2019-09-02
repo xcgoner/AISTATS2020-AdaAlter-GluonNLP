@@ -145,6 +145,7 @@ def _load_sample(x, y):
     ys = _load(y)
     ms = _load(m)
     ss = sampler(y)
+    print(ss.shape)
     ss = _load(ss)
     return xs, ys, ms, ss
 
