@@ -245,7 +245,7 @@ def train():
                 output, hidden, new_target = model(data[0], target[0], hiddens[0], sample[0])
                 output = output.reshape((-3, -1))
                 new_target = new_target.reshape((-1,))
-                ls = loss(output, new_target) * mask.reshape((-1,))
+                ls = loss(output, new_target) * mask[0].reshape((-1,))
                 ls = ls / args.batch_size
                 ls.backward()
 
