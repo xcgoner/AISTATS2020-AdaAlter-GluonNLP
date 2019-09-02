@@ -48,6 +48,8 @@ from mxnet import gluon, autograd
 import gluonnlp as nlp
 from sampler import LogUniformSampler
 
+from distributed_sgd import DistributedRspTrainer
+
 curr_path = os.path.dirname(os.path.abspath(os.path.expanduser(__file__)))
 sys.path.append(os.path.join(curr_path, '..', '..'))
 
@@ -237,8 +239,7 @@ eval_model = nlp.model.language_model.BigRNN(ntokens, args.emsize, args.nhid,
 model = nlp.model.language_model.train.BigRNN(ntokens, args.emsize, args.nhid,
                                               args.nlayers, args.nproj, args.k,
                                               embed_dropout=args.dropout,
-                                              encode_dropout=args.dropout, 
-                                              sparse_weight=False, sparse_grad=False)
+                                              encode_dropout=args.dropout)
 loss = gluon.loss.SoftmaxCrossEntropyLoss()
 
 ###############################################################################
@@ -254,7 +255,7 @@ def train():
     hvd.broadcast_parameters(model.collect_params(), root_rank=0)
     trainer_params = {'learning_rate': args.lr, 'wd': 0, 'eps': args.eps}
     # trainer = gluon.Trainer(model.collect_params(), 'adagrad', trainer_params)
-    trainer = hvd.DistributedTrainer(model.collect_params(), 'adagrad', trainer_params)
+    trainer = DistributedRspTrainer(model.collect_params(), 'adagrad', trainer_params)
     if args.from_epoch:
         from_epoch = args.from_epoch
         checkpoint_name = '%s.%s'%(args.save, format(from_epoch - 1, '02d'))
@@ -327,7 +328,7 @@ def train():
                 logging.info('[Epoch %d Batch %d] loss %.2f, ppl %.2f, '
                       'throughput %.2f samples/s'
                       %(epoch, nbatch, cur_L, ppl,
-                        train_batch_size*args.log_interval/(time.time()-start_log_interval_time)))
+                        train_batch_size*num_workers*args.log_interval/(time.time()-start_log_interval_time)))
                 total_L = 0.0
                 start_log_interval_time = time.time()
                 sys.stdout.flush()
