@@ -112,11 +112,12 @@ print(args)
 mx.random.seed(args.seed)
 np.random.seed(args.seed)
 
-context = [mx.gpu(0)]
+# context = [mx.gpu(0)]
+ctx = mx.gpu(0)
 
 os.environ['MXNET_GPU_MEM_POOL_TYPE'] = 'Round'
-os.environ['MXNET_CPU_PARALLEL_RAND_COPY'] = str(len(context))
-os.environ['MXNET_CPU_WORKER_NTHREADS'] = str(len(context))
+os.environ['MXNET_CPU_PARALLEL_RAND_COPY'] = str(1)
+os.environ['MXNET_CPU_WORKER_NTHREADS'] = str(1)
 
 ###############################################################################
 # Data stream
@@ -131,10 +132,7 @@ ntokens = len(vocab)
 sampler = LogUniformSampler(ntokens, args.k)
 
 def _load(x):
-    if isinstance(x, tuple):
-        return [y.as_in_context(ctx) for y in x]
-    else:
-        return x.as_in_context(ctx)
+    return x.as_in_context(ctx)
 
 # Transformation for a data batch for training.
 # First, load the data, target and mask to target contexts.
@@ -150,7 +148,7 @@ def _load_sample(x, y):
     ss = _load(ss)
     return xs, ys, ms, ss
 
-train_batch_size = args.batch_size * len(context)
+train_batch_size = args.batch_size
 train_batchify = nlp.data.batchify.StreamBPTTBatchify(vocab, args.bptt, train_batch_size)
 train_data = train_batchify(train_data_stream)
 train_data = train_data.transform(_load_sample)
@@ -183,7 +181,7 @@ def train():
     """
     print(model)
     from_epoch = 0
-    model.initialize(mx.init.Xavier(factor_type='out'), ctx=context)
+    model.initialize(mx.init.Xavier(factor_type='out'), ctx=ctx)
     trainer_params = {'learning_rate': args.lr, 'wd': 0, 'eps': args.eps}
     trainer = gluon.Trainer(model.collect_params(), args.optimizer, trainer_params)
     if args.from_epoch:
@@ -203,7 +201,7 @@ def train():
         start_epoch_time = time.time()
         start_log_interval_time = time.time()
         hiddens = [model.begin_state(batch_size=args.batch_size,
-                                     func=mx.nd.zeros, ctx=context[0])]
+                                     func=mx.nd.zeros, ctx=ctx)]
         nbatch = 0
         has_next = True
         train_data_iter = iter(train_data)
@@ -230,18 +228,18 @@ def train():
                 has_next = False
 
             # rescale embedding grad
-            x = embedding_params[0].grad(context[0])
+            x = embedding_params[0].grad(ctx)
             x[:] *= args.batch_size
-            encoder_grad = [p.grad(context[0]) for p in encoder_params]
+            encoder_grad = [p.grad(ctx) for p in encoder_params]
             # perform gradient clipping per ctx
             gluon.utils.clip_global_norm(encoder_grad, args.clip)
 
-            trainer.step(len(context))
+            trainer.step(1)
 
             total_L += mx.nd.sum(ls).asscalar() / args.bptt
 
             if nbatch % args.log_interval == 0:
-                cur_L = total_L / args.log_interval / len(context)
+                cur_L = total_L / args.log_interval
                 ppl = math.exp(cur_L) if cur_L < 100 else float('inf')
                 print('[Epoch %d Batch %d] loss %.2f, ppl %.2f, '
                       'throughput %.2f samples/s'
@@ -314,7 +312,7 @@ def test(data_stream, batch_size, ctx=None):
 def evaluate():
     """ Evaluate loop for the trained model """
     print(eval_model)
-    eval_model.initialize(mx.init.Xavier(), ctx=context[0])
+    eval_model.initialize(mx.init.Xavier(), ctx=ctx)
     eval_model.hybridize(static_alloc=True, static_shape=True)
     epoch = args.from_epoch if args.from_epoch else 0
     while epoch < args.epochs:
@@ -327,7 +325,7 @@ def evaluate():
         eval_model.load_parameters(checkpoint_name)
         print('Loaded parameters from checkpoint %s'%(checkpoint_name))
         start_epoch_time = time.time()
-        final_test_L = test(test_data, test_batch_size, ctx=context[0])
+        final_test_L = test(test_data, test_batch_size, ctx=ctx)
         end_epoch_time = time.time()
         print('[Epoch %d] test loss %.2f, test ppl %.2f'%
               (epoch, final_test_L, math.exp(final_test_L)))
