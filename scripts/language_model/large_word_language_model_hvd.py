@@ -276,7 +276,7 @@ def train():
         total_L = 0.0
         start_epoch_time = time.time()
         start_log_interval_time = time.time()
-        hiddens = model.begin_state(batch_size=args.batch_size,
+        hidden = model.begin_state(batch_size=args.batch_size,
                                      func=mx.nd.zeros, ctx=ctx)
         nbatch = 0
         has_next = True
@@ -285,7 +285,7 @@ def train():
 
         while has_next:
             nbatch += 1
-            hiddens = detach(hiddens)
+            hidden = hidden.detach()
             # Ls = []
             # for _, batch in enumerate(zip(data, target, mask, sample, hiddens)):
             #     parallel.put(batch)
@@ -298,7 +298,7 @@ def train():
             #     Ls.append(ls)
 
             with autograd.record():
-                output, hidden, new_target = model(data, target, hiddens, sample)
+                output, hidden, new_target = model(data, target, hidden, sample)
                 output = output.reshape((-3, -1))
                 new_target = new_target.reshape((-1,))
                 ls = loss(output, new_target) * mask.reshape((-1,))
@@ -343,12 +343,12 @@ def train():
         model.save_parameters(checkpoint_name)
         trainer.save_states('%s.state'%args.save)
 
-def detach(hidden):
-    if isinstance(hidden, (tuple, list)):
-        hidden = [detach(h) for h in hidden]
-    else:
-        hidden = hidden.detach()
-    return hidden
+# def detach(hidden):
+#     if isinstance(hidden, (tuple, list)):
+#         hidden = [detach(h) for h in hidden]
+#     else:
+#         hidden = hidden.detach()
+#     return hidden
 
 def test(data_stream, batch_size, ctx=None):
     """Evaluate the model on the dataset.
@@ -377,7 +377,7 @@ def test(data_stream, batch_size, ctx=None):
         target = target.as_in_context(ctx)
         mask = data != vocab[vocab.padding_token]
         output, hidden = eval_model(data, hidden)
-        hidden = detach(hidden)
+        hidden = hidden.detach()
         output = output.reshape((-3, -1))
         L = loss(output, target.reshape(-1,)) * mask.reshape((-1,))
         total_L += L.mean()
