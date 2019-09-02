@@ -31,20 +31,15 @@ import math
 import horovod.mxnet as hvd
 from horovod.mxnet.mpi_ops import allreduce, allreduce_, allreduce_rsp, broadcast_, broadcast_rsp
 
-class DistributedRspTrainer(hvd.DistributedTrainer):
+class DistributedRspTrainer(mx.gluon.Trainer):
     def __init__(self, params, optimizer, optimizer_params=None):
-        
-        # important: only works for bert_adam with fp16 trainer
+        if isinstance(optimizer, DistributedRspTrainer):
+            optimizer = optimizer._optimizer
+            warnings.warn("DistributedRspTrainer does not take DistributedOptimizer "
+                          "as its optimizer. We have unwrapped it for you.")
 
         super(DistributedRspTrainer, self).__init__(
             params, optimizer, optimizer_params=optimizer_params)
-
-        # _scale is used to check and set rescale_grad for optimizer in Trainer.step()
-        # function. Normalizing it by Horovod size, which is equivalent to performing
-        # average in allreduce, has better performance. 
-
-        # directly take average in allreduce_
-        self._scale *= hvd.size()
 
     def _allreduce_grads(self):
         for i, param in enumerate(self._params):
