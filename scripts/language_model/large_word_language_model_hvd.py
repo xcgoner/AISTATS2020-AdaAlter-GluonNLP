@@ -253,7 +253,7 @@ def train():
     from_epoch = 0
     model.initialize(mx.init.Xavier(factor_type='out'), ctx=ctx)
     # sparse broadcast
-    broadcast_parameters(model.collect_params(), root_rank=0)
+    # broadcast_parameters(model.collect_params(), root_rank=0)
     trainer_params = {'learning_rate': args.lr, 'wd': 0, 'eps': args.eps}
     # trainer = gluon.Trainer(model.collect_params(), 'adagrad', trainer_params)
     trainer = DistributedRspTrainer(model.collect_params(), 'adagrad', trainer_params)
