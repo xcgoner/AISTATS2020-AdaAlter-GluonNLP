@@ -130,15 +130,11 @@ ntokens = len(vocab)
 # Sampler for generating negative classes during training with importance sampling
 sampler = LogUniformSampler(ntokens, args.k)
 
-# Given a list of (array, context) pairs, load array[i] on context[i]
-def _load(xs):
-    ret = []
-    for x, ctx in zip(xs, context):
-        if isinstance(x, tuple):
-            ret.append([y.as_in_context(ctx) for y in x])
-        else:
-            ret.append(x.as_in_context(ctx))
-    return ret
+def _load(x):
+    if isinstance(x, tuple):
+        return [y.as_in_context(ctx) for y in x]
+    else:
+        return x.as_in_context(ctx)
 
 # Transformation for a data batch for training.
 # First, load the data, target and mask to target contexts.
