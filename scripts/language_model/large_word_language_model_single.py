@@ -175,22 +175,22 @@ test_data = nlp.data.PrefetchingStream(test_data)
 # Build the model
 ###############################################################################
 
-class ParallelBigRNN(Parallelizable):
-    """Data parallel BigRNN model for training."""
-    def __init__(self, rnn, loss_fn):
-        self._model = rnn
-        self._loss = loss_fn
+# class ParallelBigRNN(Parallelizable):
+#     """Data parallel BigRNN model for training."""
+#     def __init__(self, rnn, loss_fn):
+#         self._model = rnn
+#         self._loss = loss_fn
 
-    def forward_backward(self, x):
-        X, y, m, s, h = x
-        with autograd.record():
-            output, hidden, new_target = self._model(X, y, h, s)
-            output = output.reshape((-3, -1))
-            new_target = new_target.reshape((-1,))
-            ls = self._loss(output, new_target) * m.reshape((-1,))
-            ls = ls / args.batch_size
-            ls.backward()
-        return hidden, ls
+#     def forward_backward(self, x):
+#         X, y, m, s, h = x
+#         with autograd.record():
+#             output, hidden, new_target = self._model(X, y, h, s)
+#             output = output.reshape((-3, -1))
+#             new_target = new_target.reshape((-1,))
+#             ls = self._loss(output, new_target) * m.reshape((-1,))
+#             ls = ls / args.batch_size
+#             ls.backward()
+#         return hidden, ls
 
 eval_model = nlp.model.language_model.BigRNN(ntokens, args.emsize, args.nhid,
                                              args.nlayers, args.nproj,
@@ -224,15 +224,14 @@ def train():
     model.hybridize(static_alloc=True, static_shape=True)
     encoder_params = model.encoder.collect_params().values()
     embedding_params = list(model.embedding.collect_params().values())
-    parallel_model = ParallelBigRNN(model, loss)
-    parallel = Parallel(len(context), parallel_model)
+
     for epoch in range(from_epoch, args.epochs):
         sys.stdout.flush()
         total_L = 0.0
         start_epoch_time = time.time()
         start_log_interval_time = time.time()
         hiddens = [model.begin_state(batch_size=args.batch_size,
-                                     func=mx.nd.zeros, ctx=ctx) for ctx in context]
+                                     func=mx.nd.zeros, ctx=context[0])]
         nbatch = 0
         has_next = True
         train_data_iter = iter(train_data)
@@ -241,16 +240,16 @@ def train():
         while has_next:
             nbatch += 1
             hiddens = detach(hiddens)
-            Ls = []
-            for _, batch in enumerate(zip(data, target, mask, sample, hiddens)):
-                parallel.put(batch)
 
-            for _ in range(len(data)):
-                hidden, ls = parallel.get()
-                # hidden states are ordered by context id
-                index = context.index(hidden[0].context)
-                hiddens[index] = hidden
-                Ls.append(ls)
+            with autograd.record():
+                output, hidden, new_target = model(data[0], target[0], hiddens[0], sample[0])
+                output = output.reshape((-3, -1))
+                new_target = new_target.reshape((-1,))
+                ls = loss(output, new_target) * mask.reshape((-1,))
+                ls = ls / args.batch_size
+                ls.backward()
+
+            hiddens[0] = hidden
 
             # prefetch the next batch of data
             try:
@@ -259,16 +258,15 @@ def train():
                 has_next = False
 
             # rescale embedding grad
-            for ctx in context:
-                x = embedding_params[0].grad(ctx)
-                x[:] *= args.batch_size
-                encoder_grad = [p.grad(ctx) for p in encoder_params]
-                # perform gradient clipping per ctx
-                gluon.utils.clip_global_norm(encoder_grad, args.clip)
+            x = embedding_params[0].grad(context[0])
+            x[:] *= args.batch_size
+            encoder_grad = [p.grad(context[0]) for p in encoder_params]
+            # perform gradient clipping per ctx
+            gluon.utils.clip_global_norm(encoder_grad, args.clip)
 
             trainer.step(len(context))
 
-            total_L += sum([mx.nd.sum(L).asscalar() / args.bptt for L in Ls])
+            total_L += mx.nd.sum(ls).asscalar() / args.bptt
 
             if nbatch % args.log_interval == 0:
                 cur_L = total_L / args.log_interval / len(context)
