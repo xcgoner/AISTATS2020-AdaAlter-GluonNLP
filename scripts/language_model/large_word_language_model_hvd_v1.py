@@ -11,7 +11,7 @@ We implement the LSTM 2048-512 language model proposed in the following work.
 @article{jozefowicz2016exploring,
  title={Exploring the Limits of Language Modeling},
  author={Jozefowicz, Rafal and Vinyals, Oriol and Schuster, Mike and Shazeer, Noam and Wu, Yonghui},
- journal={arXiv prelogging.info arXiv:1602.02410},
+ journal={arXiv preprint arXiv:1602.02410},
  year={2016}
 }
 
@@ -38,18 +38,19 @@ We implement the LSTM 2048-512 language model proposed in the following work.
 
 import time
 import math
+import logging
 import os
 import random
 import sys
 import argparse
-import logging
 import numpy as np
 import mxnet as mx
 from mxnet import gluon, autograd
 import gluonnlp as nlp
+from gluonnlp.utils import Parallel, Parallelizable
 from sampler import LogUniformSampler
 
-from distributed_sgd import DistributedRspTrainer, broadcast_parameters
+from distributed_sgd_v1 import DistributedRspTrainer
 
 curr_path = os.path.dirname(os.path.abspath(os.path.expanduser(__file__)))
 sys.path.append(os.path.join(curr_path, '..', '..'))
@@ -83,12 +84,12 @@ parser.add_argument('--bptt', type=int, default=20,
                     help='sequence length')
 parser.add_argument('--k', type=int, default=8192,
                     help='number of noise samples for estimation')
-# parser.add_argument('--gpus', type=str,
-#                     help='list of gpus to run, e.g. 0 or 0,2,5. empty means using cpu.')
 parser.add_argument('--log-interval', type=int, default=1000,
                     help='report interval')
 parser.add_argument('--seed', type=int, default=0,
                     help='random seed')
+parser.add_argument('--optimizer', type=str, default='adagrad',
+                    help='optimizer')
 parser.add_argument('--lr', type=float, default=0.2,
                     help='initial learning rate')
 parser.add_argument('--clip', type=float, default=1.0,
@@ -111,6 +112,8 @@ if args.test_mode:
     max_nbatch_eval = 3
     segments = ['test', 'test']
 
+# logging.info(args)
+
 # logging
 logging.getLogger().setLevel(logging.INFO)
 logging.info(args)
@@ -119,12 +122,10 @@ np.random.seed(args.seed)
 random.seed(args.seed)
 mx.random.seed(args.seed)
 
-# context = [mx.cpu()] if args.gpus is None or args.gpus == '' else \
-#           [mx.gpu(int(x)) for x in args.gpus.split(',')]
 
 os.environ['MXNET_GPU_MEM_POOL_TYPE'] = 'Round'
-# os.environ['MXNET_CPU_PARALLEL_RAND_COPY'] = str(len(context))
-# os.environ['MXNET_CPU_WORKER_NTHREADS'] = str(len(context))
+os.environ['MXNET_CPU_PARALLEL_RAND_COPY'] = str(1)
+os.environ['MXNET_CPU_WORKER_NTHREADS'] = str(1)
 
 # init hvd
 try:
@@ -140,12 +141,10 @@ local_rank = hvd.local_rank()
 is_master_node = rank == local_rank
 
 ctx = mx.gpu(local_rank)
-# context = [ctx]
 
 ###############################################################################
 # Data stream
 ###############################################################################
-# split data
 num_files = 99
 split_sampler = nlp.data.SplitSampler(num_files, num_parts=num_workers, part_index=rank)
 train_data_stream, test_data_stream = \
@@ -157,15 +156,6 @@ ntokens = len(vocab)
 # Sampler for generating negative classes during training with importance sampling
 sampler = LogUniformSampler(ntokens, args.k)
 
-# Given a list of (array, context) pairs, load array[i] on context[i]
-# def _load(xs):
-#     ret = []
-#     for x, ctx in zip(xs, context):
-#         if isinstance(x, tuple):
-#             ret.append([y.as_in_context(ctx) for y in x])
-#         else:
-#             ret.append(x.as_in_context(ctx))
-#     return ret
 def _load(x):
     if isinstance(x, tuple):
         return [y.as_in_context(ctx) for y in x]
@@ -177,22 +167,6 @@ def _load(x):
 # Second, the LSTM-2048-512 model performs importance sampling for decoding
 # during training, we need to sample negative candidate classes by invoking the
 # log uniform sampler.
-# def _split_and_sample(x, y):
-#     m = x != vocab[vocab.padding_token]  # mask padding
-#     num_ctx = len(context)
-#     if num_ctx > 1:
-#         xs = gluon.utils.split_data(x, num_ctx, batch_axis=1, even_split=True)
-#         ys = gluon.utils.split_data(y, num_ctx, batch_axis=1, even_split=True)
-#         ms = gluon.utils.split_data(m, num_ctx, batch_axis=1, even_split=True)
-#     else:
-#         xs, ys, ms = [x], [y], [m]
-#     xs = _load(xs)
-#     ys = _load(ys)
-#     ms = _load(ms)
-#     ss = [sampler(y) for y in ys]
-#     ss = _load(ss)
-#     return xs, ys, ms, ss
-
 def _load_sample(x, y):
     m = x != vocab[vocab.padding_token]  # mask padding
     xs = _load(x)
@@ -205,7 +179,6 @@ def _load_sample(x, y):
 train_batch_size = args.batch_size
 train_batchify = nlp.data.batchify.StreamBPTTBatchify(vocab, args.bptt, train_batch_size)
 train_data = train_batchify(train_data_stream)
-# train_data = train_data.transform(_split_and_sample)
 train_data = train_data.transform(_load_sample)
 
 test_batch_size = args.batch_size
@@ -216,23 +189,6 @@ test_data = nlp.data.PrefetchingStream(test_data)
 ###############################################################################
 # Build the model
 ###############################################################################
-
-# class ParallelBigRNN(Parallelizable):
-#     """Data parallel BigRNN model for training."""
-#     def __init__(self, rnn, loss_fn):
-#         self._model = rnn
-#         self._loss = loss_fn
-
-#     def forward_backward(self, x):
-#         X, y, m, s, h = x
-#         with autograd.record():
-#             output, hidden, new_target = self._model(X, y, h, s)
-#             output = output.reshape((-3, -1))
-#             new_target = new_target.reshape((-1,))
-#             ls = self._loss(output, new_target) * m.reshape((-1,))
-#             ls = ls / args.batch_size
-#             ls.backward()
-#         return hidden, ls
 
 eval_model = nlp.model.language_model.BigRNN(ntokens, args.emsize, args.nhid,
                                              args.nlayers, args.nproj,
@@ -254,11 +210,10 @@ def train():
     # logging.info(model)
     from_epoch = 0
     model.initialize(mx.init.Xavier(factor_type='out'), ctx=ctx)
-    # sparse broadcast
-    # broadcast_parameters(model.collect_params(), root_rank=0)
     trainer_params = {'learning_rate': args.lr, 'wd': 0, 'eps': args.eps}
-    # trainer = gluon.Trainer(model.collect_params(), 'adagrad', trainer_params)
-    trainer = DistributedRspTrainer(model.collect_params(), 'adagrad', trainer_params)
+    # trainer = gluon.Trainer(model.collect_params(), args.optimizer, trainer_params)
+    trainer = DistributedRspTrainer(model.collect_params(), args.optimizer, trainer_params)
+
     if args.from_epoch:
         from_epoch = args.from_epoch
         checkpoint_name = '%s.%s'%(args.save, format(from_epoch - 1, '02d'))
@@ -269,8 +224,7 @@ def train():
     model.hybridize(static_alloc=True, static_shape=True)
     encoder_params = model.encoder.collect_params().values()
     embedding_params = list(model.embedding.collect_params().values())
-    # parallel_model = ParallelBigRNN(model, loss)
-    # parallel = Parallel(len(context), parallel_model)
+
     for epoch in range(from_epoch, args.epochs):
         sys.stdout.flush()
         total_L = 0.0
@@ -286,16 +240,6 @@ def train():
         while has_next:
             nbatch += 1
             hidden = detach(hidden)
-            # Ls = []
-            # for _, batch in enumerate(zip(data, target, mask, sample, hiddens)):
-            #     parallel.put(batch)
-
-            # for _ in range(len(data)):
-            #     hidden, ls = parallel.get()
-            #     # hidden states are ordered by context id
-            #     index = context.index(hidden[0].context)
-            #     hiddens[index] = hidden
-            #     Ls.append(ls)
 
             with autograd.record():
                 output, hidden, new_target = model(data, target, hidden, sample)
@@ -312,17 +256,14 @@ def train():
                 has_next = False
 
             # rescale embedding grad
-            # for ctx in context:
             x = embedding_params[0].grad(ctx)
             x[:] *= args.batch_size
             encoder_grad = [p.grad(ctx) for p in encoder_params]
             # perform gradient clipping per ctx
             gluon.utils.clip_global_norm(encoder_grad, args.clip)
 
-            # trainer.step(len(context))
             trainer.step(1)
 
-            # total_L += sum([mx.nd.sum(L).asscalar() / args.bptt for L in Ls])
             total_L += mx.nd.sum(ls).asscalar() / args.bptt
 
             if nbatch % args.log_interval == 0:

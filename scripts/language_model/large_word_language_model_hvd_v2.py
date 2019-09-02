@@ -50,7 +50,7 @@ import gluonnlp as nlp
 from gluonnlp.utils import Parallel, Parallelizable
 from sampler import LogUniformSampler
 
-from distributed_sgd import DistributedRspTrainer, broadcast_parameters
+from distributed_sgd_v2 import DistributedRspTrainer
 
 curr_path = os.path.dirname(os.path.abspath(os.path.expanduser(__file__)))
 sys.path.append(os.path.join(curr_path, '..', '..'))
