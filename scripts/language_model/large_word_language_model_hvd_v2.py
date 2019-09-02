@@ -112,7 +112,7 @@ if args.test_mode:
     max_nbatch_eval = 3
     segments = ['test', 'test']
 
-# print(args)
+# logging.info(args)
 
 # logging
 logging.getLogger().setLevel(logging.INFO)
@@ -207,7 +207,7 @@ loss = gluon.loss.SoftmaxCrossEntropyLoss()
 def train():
     """Training loop for language model.
     """
-    print(model)
+    # logging.info(model)
     from_epoch = 0
     model.initialize(mx.init.Xavier(factor_type='out'), ctx=ctx)
     trainer_params = {'learning_rate': args.lr, 'wd': 0, 'eps': args.eps}
@@ -217,7 +217,7 @@ def train():
         checkpoint_name = '%s.%s'%(args.save, format(from_epoch - 1, '02d'))
         model.load_parameters(checkpoint_name)
         trainer.load_states('%s.state'%args.save)
-        print('Loaded parameters from checkpoint %s'%(checkpoint_name))
+        logging.info('Loaded parameters from checkpoint %s'%(checkpoint_name))
 
     model.hybridize(static_alloc=True, static_shape=True)
     encoder_params = model.encoder.collect_params().values()
@@ -267,16 +267,16 @@ def train():
             if nbatch % args.log_interval == 0:
                 cur_L = total_L / args.log_interval
                 ppl = math.exp(cur_L) if cur_L < 100 else float('inf')
-                print('[Epoch %d Batch %d] loss %.2f, ppl %.2f, '
+                logging.info('[Epoch %d Batch %d] loss %.2f, ppl %.2f, '
                       'throughput %.2f samples/s'
                       %(epoch, nbatch, cur_L, ppl,
-                        train_batch_size*args.log_interval/(time.time()-start_log_interval_time)))
+                        train_batch_size*num_workers*args.log_interval/(time.time()-start_log_interval_time)))
                 total_L = 0.0
                 start_log_interval_time = time.time()
                 sys.stdout.flush()
 
         end_epoch_time = time.time()
-        print('Epoch %d took %.2f seconds.'%(epoch, end_epoch_time - start_epoch_time))
+        logging.info('Epoch %d took %.2f seconds.'%(epoch, end_epoch_time - start_epoch_time))
         mx.nd.waitall()
         checkpoint_name = '%s.%s'%(args.save, format(epoch, '02d'))
         model.save_parameters(checkpoint_name)
@@ -327,35 +327,35 @@ def test(data_stream, batch_size, ctx=None):
             avg_scalar = float(avg.asscalar())
             ppl = math.exp(avg_scalar)
             throughput = batch_size*args.log_interval/(time.time()-start_time)
-            print('Evaluation batch %d: test loss %.2f, test ppl %.2f, '
+            logging.info('Evaluation batch %d: test loss %.2f, test ppl %.2f, '
                   'throughput = %.2f samples/s'%(nbatch, avg_scalar, ppl, throughput))
             start_time = time.time()
         if max_nbatch_eval and nbatch > max_nbatch_eval:
-            print('Quit evaluation early at batch %d'%nbatch)
+            logging.info('Quit evaluation early at batch %d'%nbatch)
             break
     return float(avg.asscalar())
 
 def evaluate():
     """ Evaluate loop for the trained model """
-    print(eval_model)
+    logging.info(eval_model)
     eval_model.initialize(mx.init.Xavier(), ctx=ctx)
     eval_model.hybridize(static_alloc=True, static_shape=True)
     epoch = args.from_epoch if args.from_epoch else 0
     while epoch < args.epochs:
         checkpoint_name = '%s.%s'%(args.save, format(epoch, '02d'))
         if not os.path.exists(checkpoint_name):
-            print('Wait for a new checkpoint...')
+            logging.info('Wait for a new checkpoint...')
             # check again after 600 seconds
             time.sleep(600)
             continue
         eval_model.load_parameters(checkpoint_name)
-        print('Loaded parameters from checkpoint %s'%(checkpoint_name))
+        logging.info('Loaded parameters from checkpoint %s'%(checkpoint_name))
         start_epoch_time = time.time()
         final_test_L = test(test_data, test_batch_size, ctx=ctx)
         end_epoch_time = time.time()
-        print('[Epoch %d] test loss %.2f, test ppl %.2f'%
+        logging.info('[Epoch %d] test loss %.2f, test ppl %.2f'%
               (epoch, final_test_L, math.exp(final_test_L)))
-        print('Epoch %d took %.2f seconds.'%(epoch, end_epoch_time - start_epoch_time))
+        logging.info('Epoch %d took %.2f seconds.'%(epoch, end_epoch_time - start_epoch_time))
         sys.stdout.flush()
         epoch += 1
 
