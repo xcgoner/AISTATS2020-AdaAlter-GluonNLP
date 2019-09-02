@@ -114,8 +114,9 @@ if args.test_mode:
 logging.getLogger().setLevel(logging.INFO)
 logging.info(args)
 
-mx.random.seed(args.seed)
 np.random.seed(args.seed)
+random.seed(args.seed)
+mx.random.seed(args.seed)
 
 # context = [mx.cpu()] if args.gpus is None or args.gpus == '' else \
 #           [mx.gpu(int(x)) for x in args.gpus.split(',')]
