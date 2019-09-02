@@ -229,7 +229,6 @@ class SimpleDatasetStream(DatasetStream):
         # generate file samples
         for file_idx in iter(self._file_sampler):
             filename = self._files[file_idx]
-            print(filename)
             yield self._dataset(filename, **self._kwargs)
 
 
