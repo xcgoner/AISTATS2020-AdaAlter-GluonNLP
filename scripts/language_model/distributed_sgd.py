@@ -53,7 +53,7 @@ class DistributedRspTrainer(hvd.DistributedTrainer):
                     allreduce_(param.list_grad()[0], average=True,
                             name=str(i), priority=-i)
                 elif param.list_grad()[0].stype == 'row_sparse':
-                    allreduce_rsp(param.list_grad()[0], average=True,
-                                  name=str(i), priority=-i)
+                    param.list_grad()[0] = allreduce_rsp(param.list_grad()[0], average=True,
+                                                         name=str(i), priority=-i)
                 else:
                     raise NotImplementedError('DistributedRspTrainer has not been implemented for {} nd'.format(param.list_grad()[0].stype))
