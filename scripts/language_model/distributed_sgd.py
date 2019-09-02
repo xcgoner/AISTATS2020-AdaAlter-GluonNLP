@@ -52,6 +52,7 @@ class DistributedRspTrainer(mx.gluon.Trainer):
         #                                                  name=str(i), priority=-i)
         #         else:
         #             raise NotImplementedError('DistributedRspTrainer has not been implemented for {} nd'.format(param.list_grad()[0].stype))
+        pass
 
 # Wrapper to inject Horovod broadcast after parameter initialization
 def _append_broadcast_init(param, root_rank):
