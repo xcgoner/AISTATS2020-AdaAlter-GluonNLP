@@ -38,6 +38,7 @@ We implement the LSTM 2048-512 language model proposed in the following work.
 
 import time
 import math
+import logging
 import os
 import random
 import sys
@@ -48,6 +49,8 @@ from mxnet import gluon, autograd
 import gluonnlp as nlp
 from gluonnlp.utils import Parallel, Parallelizable
 from sampler import LogUniformSampler
+
+from distributed_sgd import DistributedRspTrainer, broadcast_parameters
 
 curr_path = os.path.dirname(os.path.abspath(os.path.expanduser(__file__)))
 sys.path.append(os.path.join(curr_path, '..', '..'))
