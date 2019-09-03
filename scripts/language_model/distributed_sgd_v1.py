@@ -54,12 +54,13 @@ class DistributedRspTrainer(mx.gluon.Trainer):
                     if i not in self._hvd_param_buf:
                         self._hvd_param_buf[i] = mx.nd.zeros(param.list_grad()[0].shape, param.list_grad()[0].context, dtype=param.list_grad()[0].dtype)
                     param_dense = self._hvd_param_buf[i]
-                    param_dense[:] = param.list_grad()[0]
+                    mx.nd.sparse.cast_storage(param.list_grad()[0], 'default', out=param_dense)
                     allreduce_(param_dense, average=True,
                                 name=str(i), priority=-i)
+                    mx.nd.sparse.cast_storage(param_dense, 'row_sparse', out=param.list_grad()[0])
 
-        for i, param in enumerate(self._params):
-            if param.grad_req != 'null':
-                if param.list_grad()[0].stype != 'default':
-                    if i in self._hvd_param_buf:
-                        param.list_grad()[0][:] = self._hvd_param_buf[i]
+        # for i, param in enumerate(self._params):
+        #     if param.grad_req != 'null':
+        #         if param.list_grad()[0].stype != 'default':
+        #             if i in self._hvd_param_buf:
+        #                 param.list_grad()[0][:] = self._hvd_param_buf[i]
