@@ -98,6 +98,8 @@ parser.add_argument('--test-mode', action='store_true',
                     help='Whether to run through the script with few examples')
 parser.add_argument('--eval-only', action='store_true',
                     help='Whether to only run evaluation for the trained model')
+parser.add_argument('--warmup-steps', type=int, default=1,
+                    help='number of steps for warmup')
 args = parser.parse_args()
 
 segments = ['train', 'test']
@@ -228,6 +230,10 @@ def train():
     encoder_params = model.encoder.collect_params().values()
     embedding_params = list(model.embedding.collect_params().values())
 
+    step_num = 0.0
+    lr = args.lr
+    current_lr = lr
+
     for epoch in range(from_epoch, args.epochs):
         sys.stdout.flush()
         total_L = 0.0
@@ -242,6 +248,13 @@ def train():
 
         while has_next:
             nbatch += 1
+
+            step_num += 1
+            if step_num <= args.warmup_steps:
+                new_lr = lr * step_num / args.warmup_steps
+                trainer.set_learning_rate(new_lr)
+                current_lr = new_lr
+
             hidden = detach(hidden)
 
             with autograd.record():
@@ -273,9 +286,9 @@ def train():
                 cur_L = total_L / args.log_interval
                 ppl = math.exp(cur_L) if cur_L < 100 else float('inf')
                 logging.info('[Epoch %d Batch %d] loss %.2f, ppl %.2f, '
-                      'throughput %.2f samples/s'
+                      'throughput %.2f samples/s, lr %.4f'
                       %(epoch, nbatch, cur_L, ppl,
-                        train_batch_size*num_workers*args.log_interval/(time.time()-start_log_interval_time)))
+                        train_batch_size*num_workers*args.log_interval/(time.time()-start_log_interval_time), current_lr))
                 total_L = 0.0
                 start_log_interval_time = time.time()
                 sys.stdout.flush()
