@@ -60,7 +60,7 @@ class DistributedRspTrainer(mx.gluon.Trainer):
                         self._hvd_param_buf[i] = mx.nd.zeros(param.list_grad()[0].shape, param.list_grad()[0].context, dtype=self._sdtype)
                     param_dense = self._hvd_param_buf[i]
                     if self._dtype_mismatch:
-                        param_dense[:] = param.list_grad()[0]
+                        param_dense[:] = param.list_grad()[0].tostype('default')
                     else:
                         mx.nd.sparse.cast_storage(param.list_grad()[0], 'default', out=param_dense)
                     allreduce_(param_dense, average=True,
@@ -72,6 +72,6 @@ class DistributedRspTrainer(mx.gluon.Trainer):
                 if param.list_grad()[0].stype != 'default':
                     if i in self._hvd_param_buf:
                         if self._dtype_mismatch:
-                            param.list_grad()[0][:] = self._hvd_param_buf[i]
+                            param.list_grad()[0][:] = self._hvd_param_buf[i].tostype('row_sparse')
                         else:
                             mx.nd.sparse.cast_storage(self._hvd_param_buf[i], 'row_sparse', out=param.list_grad()[0])
