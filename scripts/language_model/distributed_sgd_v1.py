@@ -29,10 +29,10 @@ import warnings
 import math
 
 import horovod.mxnet as hvd
-from horovod.mxnet.mpi_ops import allreduce, allreduce_, allreduce_rsp, broadcast_, broadcast_rsp
+from horovod.mxnet.mpi_ops import allreduce, allreduce_
 
 class DistributedRspTrainer(mx.gluon.Trainer):
-    def __init__(self, params, optimizer, optimizer_params=None):
+    def __init__(self, params, optimizer, optimizer_params=None, sdtype='float32'):
         if isinstance(optimizer, DistributedRspTrainer):
             optimizer = optimizer._optimizer
             warnings.warn("DistributedRspTrainer does not take DistributedOptimizer "
@@ -42,6 +42,7 @@ class DistributedRspTrainer(mx.gluon.Trainer):
             params, optimizer, optimizer_params=optimizer_params, kvstore='local')
 
         self._hvd_param_buf = {}
+        self._sdtype = sdtype
 
     def _allreduce_grads(self):
         super(DistributedRspTrainer, self)._allreduce_grads()
@@ -52,7 +53,7 @@ class DistributedRspTrainer(mx.gluon.Trainer):
                                name=str(i), priority=-i)
                 else:
                     if i not in self._hvd_param_buf:
-                        self._hvd_param_buf[i] = mx.nd.zeros(param.list_grad()[0].shape, param.list_grad()[0].context, dtype=param.list_grad()[0].dtype)
+                        self._hvd_param_buf[i] = mx.nd.zeros(param.list_grad()[0].shape, param.list_grad()[0].context, dtype=self._sdtype)
                     param_dense = self._hvd_param_buf[i]
                     mx.nd.sparse.cast_storage(param.list_grad()[0], 'default', out=param_dense)
                     allreduce_(param_dense, average=True,
