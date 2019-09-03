@@ -50,7 +50,7 @@ import gluonnlp as nlp
 from gluonnlp.utils import Parallel, Parallelizable
 from sampler import LogUniformSampler
 
-from distributed_sgd_inplace import DistributedRspTrainer
+from distributed_sgd_v1 import DistributedRspTrainer
 
 curr_path = os.path.dirname(os.path.abspath(os.path.expanduser(__file__)))
 sys.path.append(os.path.join(curr_path, '..', '..'))
@@ -216,7 +216,7 @@ def train():
     model.initialize(mx.init.Xavier(factor_type='out'), ctx=ctx)
     trainer_params = {'learning_rate': args.lr, 'wd': 0, 'eps': args.eps}
     # trainer = gluon.Trainer(model.collect_params(), args.optimizer, trainer_params)
-    trainer = DistributedRspTrainer(model.collect_params(), args.optimizer, trainer_params)
+    trainer = DistributedRspTrainer(model.collect_params(), args.optimizer, trainer_params, sdtype='float16')
 
     if args.from_epoch:
         from_epoch = args.from_epoch
