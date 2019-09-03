@@ -50,7 +50,7 @@ import gluonnlp as nlp
 from gluonnlp.utils import Parallel, Parallelizable
 from sampler import LogUniformSampler
 
-from distributed_sgd_v1 import DistributedRspTrainer
+from distributed_sgd_inplace import DistributedRspTrainer
 
 curr_path = os.path.dirname(os.path.abspath(os.path.expanduser(__file__)))
 sys.path.append(os.path.join(curr_path, '..', '..'))
@@ -154,6 +154,7 @@ train_data_stream, test_data_stream = \
      for segment in segments]
 vocab = train_data_stream.vocab
 ntokens = len(vocab)
+num_batches_per_epoch = 78000 * 4 // num_workers
 
 # Sampler for generating negative classes during training with importance sampling
 sampler = LogUniformSampler(ntokens, args.k)
@@ -215,7 +216,7 @@ def train():
     model.initialize(mx.init.Xavier(factor_type='out'), ctx=ctx)
     trainer_params = {'learning_rate': args.lr, 'wd': 0, 'eps': args.eps}
     # trainer = gluon.Trainer(model.collect_params(), args.optimizer, trainer_params)
-    trainer = DistributedRspTrainer(model.collect_params(), args.optimizer, trainer_params, sdtype='float16')
+    trainer = DistributedRspTrainer(model.collect_params(), args.optimizer, trainer_params)
 
     if args.from_epoch:
         from_epoch = args.from_epoch
@@ -230,18 +231,20 @@ def train():
     encoder_params = model.encoder.collect_params().values()
     embedding_params = list(model.embedding.collect_params().values())
 
-    step_num = 0.0
+    step_num = 0
     lr = args.lr
     current_lr = lr
 
-    for epoch in range(from_epoch, args.epochs):
+    epoch = from_epoch
+    start_epoch_time = time.time()
+    start_log_interval_time = time.time()
+    nbatch = 0
+
+    while epoch < args.epochs:
         sys.stdout.flush()
         total_L = 0.0
-        start_epoch_time = time.time()
-        start_log_interval_time = time.time()
         hidden = model.begin_state(batch_size=args.batch_size,
                                      func=mx.nd.zeros, ctx=ctx)
-        nbatch = 0
         has_next = True
         train_data_iter = iter(train_data)
         data, target, mask, sample = next(train_data_iter)
@@ -293,12 +296,19 @@ def train():
                 start_log_interval_time = time.time()
                 sys.stdout.flush()
 
-        end_epoch_time = time.time()
-        logging.info('Epoch %d took %.2f seconds.'%(epoch, end_epoch_time - start_epoch_time))
-        mx.nd.waitall()
-        checkpoint_name = '%s.%s'%(args.save, format(epoch, '02d'))
-        model.save_parameters(checkpoint_name)
-        trainer.save_states('%s.state'%args.save)
+            if nbatch == num_batches_per_epoch:
+                end_epoch_time = time.time()
+                logging.info('Epoch %d took %.2f seconds.'%(epoch, end_epoch_time - start_epoch_time))
+                mx.nd.waitall()
+                checkpoint_name = '%s.%s'%(args.save, format(epoch, '02d'))
+                model.save_parameters(checkpoint_name)
+                trainer.save_states('%s.state'%args.save)
+                nbatch = 0
+                start_epoch_time = time.time()
+                epoch += 1
+                if epoch == args.epochs:
+                    break
+
 
 def detach(hidden):
     if isinstance(hidden, (tuple, list)):
