@@ -222,6 +222,8 @@ def train():
         trainer.load_states('%s.state'%args.save)
         logging.info('Loaded parameters from checkpoint %s'%(checkpoint_name))
 
+    hvd.broadcast_parameters(model.collect_params(), root_rank=0)
+
     model.hybridize(static_alloc=True, static_shape=True)
     encoder_params = model.encoder.collect_params().values()
     embedding_params = list(model.embedding.collect_params().values())
