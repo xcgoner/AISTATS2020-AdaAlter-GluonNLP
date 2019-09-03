@@ -247,7 +247,7 @@ def train():
     start_log_interval_time = time.time()
     nbatch = 0
 
-    while epoch < args.epochs
+    while epoch < args.epochs:
         sys.stdout.flush()
         total_L = 0.0
         hidden = model.begin_state(batch_size=args.batch_size,
