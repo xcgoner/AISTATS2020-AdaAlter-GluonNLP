@@ -283,13 +283,13 @@ def train():
 
             trainer.step(1)
 
-            # ls_sum = mx.nd.sum(ls)
+            ls_sum = mx.nd.sum(ls)
 
-            # hvd.allreduce_(ls_sum, average=True, name='ls', priority=-9999)
+            hvd.allreduce_(ls_sum, average=True, name='ls', priority=-9999)
 
-            # total_L += ls_sum.asscalar() / args.bptt
+            total_L += ls_sum.asscalar() / args.bptt
 
-            total_L += mx.nd.sum(ls).asscalar() / args.bptt
+            # total_L += mx.nd.sum(ls).asscalar() / args.bptt
 
             if nbatch % args.log_interval == 0:
                 cur_L = total_L / args.log_interval

@@ -528,7 +528,6 @@ class SplitSampler(Sampler):
     def __iter__(self):
         # Extract examples between `start` and `end`, shuffle and return them.
         indices = list(range(self._start, self._end))
-        print(indices)
         random.shuffle(indices)
         return iter(indices)
 
