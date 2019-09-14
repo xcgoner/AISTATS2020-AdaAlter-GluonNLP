@@ -29,7 +29,7 @@ import warnings
 import math
 
 import horovod.mxnet as hvd
-from horovod.mxnet.mpi_ops import allreduce, allreduce_, allreduce_rsp, broadcast_, broadcast_rsp
+from horovod.mxnet.mpi_ops import allreduce, allreduce_
 
 class DistributedRspTrainer(mx.gluon.Trainer):
     def __init__(self, params, optimizer, optimizer_params=None):
@@ -49,9 +49,18 @@ class DistributedRspTrainer(mx.gluon.Trainer):
             if param.grad_req != 'null':
                 if param.list_grad()[0].stype == 'default':
                     allreduce_(param.list_grad()[0], average=True,
-                            name=str(i), priority=-i)
-                elif param.list_grad()[0].stype == 'row_sparse':
-                    param.list_grad()[0] = allreduce_rsp(param.list_grad()[0], average=True,
-                                                         name=str(i), priority=-i)
+                               name=str(i), priority=-i)
                 else:
-                    raise NotImplementedError('DistributedRspTrainer has not been implemented for {} nd'.format(param.list_grad()[0].stype))
+                    if i not in self._hvd_param_buf:
+                        self._hvd_param_buf[i] = mx.nd.zeros(param.list_grad()[0].shape, param.list_grad()[0].context, dtype=param.list_grad()[0].dtype)
+                    param_dense = self._hvd_param_buf[i]
+                    mx.nd.sparse.cast_storage(param.list_grad()[0], 'default', out=param_dense)
+                    allreduce_(param_dense, average=True,
+                                name=str(i), priority=-i)
+                    # mx.nd.sparse.cast_storage(param_dense, 'row_sparse', out=param.list_grad()[0])
+
+        for i, param in enumerate(self._params):
+            if param.grad_req != 'null':
+                if param.list_grad()[0].stype != 'default':
+                    if i in self._hvd_param_buf:
+                        mx.nd.sparse.cast_storage(self._hvd_param_buf[i], 'row_sparse', out=param.list_grad()[0])

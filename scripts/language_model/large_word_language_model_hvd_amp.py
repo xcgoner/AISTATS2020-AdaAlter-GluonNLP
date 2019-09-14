@@ -50,7 +50,7 @@ import gluonnlp as nlp
 from gluonnlp.utils import Parallel, Parallelizable
 from sampler import LogUniformSampler
 
-from distributed_sgd_v2 import DistributedRspTrainer
+from distributed_sgd_inplace import DistributedRspTrainer
 
 curr_path = os.path.dirname(os.path.abspath(os.path.expanduser(__file__)))
 sys.path.append(os.path.join(curr_path, '..', '..'))
@@ -98,6 +98,8 @@ parser.add_argument('--test-mode', action='store_true',
                     help='Whether to run through the script with few examples')
 parser.add_argument('--eval-only', action='store_true',
                     help='Whether to only run evaluation for the trained model')
+parser.add_argument('--warmup-steps', type=int, default=1,
+                    help='number of steps for warmup')
 args = parser.parse_args()
 
 segments = ['train', 'test']
@@ -142,6 +144,11 @@ is_master_node = rank == local_rank
 
 ctx = mx.gpu(local_rank)
 
+# init amp
+from mxnet.contrib import amp
+
+amp.init()
+
 ###############################################################################
 # Data stream
 ###############################################################################
@@ -152,6 +159,7 @@ train_data_stream, test_data_stream = \
      for segment in segments]
 vocab = train_data_stream.vocab
 ntokens = len(vocab)
+num_batches_per_epoch = 78000 * 4 // num_workers
 
 # Sampler for generating negative classes during training with importance sampling
 sampler = LogUniformSampler(ntokens, args.k)
@@ -197,7 +205,8 @@ eval_model = nlp.model.language_model.BigRNN(ntokens, args.emsize, args.nhid,
 model = nlp.model.language_model.train.BigRNN(ntokens, args.emsize, args.nhid,
                                               args.nlayers, args.nproj, args.k,
                                               embed_dropout=args.dropout,
-                                              encode_dropout=args.dropout)
+                                              encode_dropout=args.dropout, 
+                                             sparse_weight=False)
 loss = gluon.loss.SoftmaxCrossEntropyLoss()
 
 ###############################################################################
@@ -214,6 +223,8 @@ def train():
     # trainer = gluon.Trainer(model.collect_params(), args.optimizer, trainer_params)
     trainer = DistributedRspTrainer(model.collect_params(), args.optimizer, trainer_params)
 
+    amp.init_trainer(trainer)
+
     if args.from_epoch:
         from_epoch = args.from_epoch
         checkpoint_name = '%s.%s'%(args.save, format(from_epoch - 1, '02d'))
@@ -221,24 +232,39 @@ def train():
         trainer.load_states('%s.state'%args.save)
         logging.info('Loaded parameters from checkpoint %s'%(checkpoint_name))
 
+    hvd.broadcast_parameters(model.collect_params(), root_rank=0)
+
     model.hybridize(static_alloc=True, static_shape=True)
     encoder_params = model.encoder.collect_params().values()
     embedding_params = list(model.embedding.collect_params().values())
 
-    for epoch in range(from_epoch, args.epochs):
+    step_num = 0
+    lr = args.lr
+    current_lr = lr
+
+    epoch = from_epoch
+    start_epoch_time = time.time()
+    start_log_interval_time = time.time()
+    nbatch = 0
+
+    while epoch < args.epochs:
         sys.stdout.flush()
         total_L = 0.0
-        start_epoch_time = time.time()
-        start_log_interval_time = time.time()
         hidden = model.begin_state(batch_size=args.batch_size,
                                      func=mx.nd.zeros, ctx=ctx)
-        nbatch = 0
         has_next = True
         train_data_iter = iter(train_data)
         data, target, mask, sample = next(train_data_iter)
 
         while has_next:
             nbatch += 1
+
+            step_num += 1
+            if step_num <= args.warmup_steps:
+                new_lr = lr * step_num / args.warmup_steps
+                trainer.set_learning_rate(new_lr)
+                current_lr = new_lr
+
             hidden = detach(hidden)
 
             with autograd.record():
@@ -247,7 +273,9 @@ def train():
                 new_target = new_target.reshape((-1,))
                 ls = loss(output, new_target) * mask.reshape((-1,))
                 ls = ls / args.batch_size
-                ls.backward()
+                # ls.backward()
+                with amp.scale_loss(ls, trainer) as scaled_loss:
+                    autograd.backward(scaled_loss)
 
             # prefetch the next batch of data
             try:
@@ -270,19 +298,26 @@ def train():
                 cur_L = total_L / args.log_interval
                 ppl = math.exp(cur_L) if cur_L < 100 else float('inf')
                 logging.info('[Epoch %d Batch %d] loss %.2f, ppl %.2f, '
-                      'throughput %.2f samples/s'
+                      'throughput %.2f samples/s, lr %.4f'
                       %(epoch, nbatch, cur_L, ppl,
-                        train_batch_size*num_workers*args.log_interval/(time.time()-start_log_interval_time)))
+                        train_batch_size*num_workers*args.log_interval/(time.time()-start_log_interval_time), current_lr))
                 total_L = 0.0
                 start_log_interval_time = time.time()
                 sys.stdout.flush()
 
-        end_epoch_time = time.time()
-        logging.info('Epoch %d took %.2f seconds.'%(epoch, end_epoch_time - start_epoch_time))
-        mx.nd.waitall()
-        checkpoint_name = '%s.%s'%(args.save, format(epoch, '02d'))
-        model.save_parameters(checkpoint_name)
-        trainer.save_states('%s.state'%args.save)
+            if nbatch == num_batches_per_epoch:
+                end_epoch_time = time.time()
+                logging.info('Epoch %d took %.2f seconds.'%(epoch, end_epoch_time - start_epoch_time))
+                mx.nd.waitall()
+                checkpoint_name = '%s.%s'%(args.save, format(epoch, '02d'))
+                model.save_parameters(checkpoint_name)
+                trainer.save_states('%s.state'%args.save)
+                nbatch = 0
+                start_epoch_time = time.time()
+                epoch += 1
+                if epoch == args.epochs:
+                    break
+
 
 def detach(hidden):
     if isinstance(hidden, (tuple, list)):
