@@ -138,7 +138,7 @@ num_ctxs = len(context)
 
 if args.gpus is not None and args.gpus != '':
     ctx_list_size = int(math.ceil(len(context) / float(num_local_workers)))
-    context = ctx[(local_rank * ctx_list_size) : min((local_rank+1)*ctx_list_size, len(context))]
+    context = context[(local_rank * ctx_list_size) : min((local_rank+1)*ctx_list_size, len(context))]
     num_ctxs = len(context)
 
 # debug
