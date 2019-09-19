@@ -294,10 +294,11 @@ def train():
             if nbatch % args.log_interval == 0:
                 cur_L = total_L / args.log_interval
                 ppl = math.exp(cur_L) if cur_L < 100 else float('inf')
-                logging.info('[Epoch %d Batch %d] loss %.2f, ppl %.2f, '
-                      'throughput %.2f samples/s, lr %.4f'
-                      %(epoch, nbatch, cur_L, ppl,
-                        train_batch_size*num_workers*args.log_interval/(time.time()-start_log_interval_time), current_lr))
+                if rank == 0:
+                    logging.info('[Epoch %d Batch %d] loss %.2f, ppl %.2f, '
+                        'throughput %.2f samples/s, lr %.4f'
+                        %(epoch, nbatch, cur_L, ppl,
+                            train_batch_size*num_workers*args.log_interval/(time.time()-start_log_interval_time), current_lr))
                 total_L = 0.0
                 start_log_interval_time = time.time()
                 sys.stdout.flush()
