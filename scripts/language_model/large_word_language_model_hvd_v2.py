@@ -48,7 +48,7 @@ import gluonnlp as nlp
 from gluonnlp.utils import Parallel, Parallelizable
 from sampler import LogUniformSampler
 
-from distributed_sgd_v2 import DistributedRspTrainer
+from distributed_sgd_v2 import DistributedHierKVHVDTrainer
 
 curr_path = os.path.dirname(os.path.abspath(os.path.expanduser(__file__)))
 sys.path.append(os.path.join(curr_path, '..', '..'))
@@ -246,7 +246,7 @@ def train():
     from_epoch = 0
     model.initialize(mx.init.Xavier(factor_type='out'), ctx=context)
     trainer_params = {'learning_rate': args.lr, 'wd': 0, 'eps': args.eps}
-    trainer = gluon.Trainer(model.collect_params(), args.optimizer, trainer_params)
+    trainer = DistributedHierKVHVDTrainer(model.collect_params(), args.optimizer, trainer_params)
     if args.from_epoch:
         from_epoch = args.from_epoch
         checkpoint_name = '%s.%s'%(args.save, format(from_epoch - 1, '02d'))
