@@ -35,7 +35,7 @@ class DistributedHierKVHVDTrainer(mx.gluon.Trainer):
     def __init__(self, params, optimizer, optimizer_params=None, sdtype='float32'):
 
         super(DistributedHierKVHVDTrainer, self).__init__(
-            params, optimizer, optimizer_params=optimizer_params, kvstore='device', update_on_kvstore = False)
+            params, optimizer, optimizer_params=optimizer_params)
 
         self._hvd_param_buf = {}
         self._sdtype = sdtype
@@ -46,6 +46,8 @@ class DistributedHierKVHVDTrainer(mx.gluon.Trainer):
 
     def _allreduce_grads(self):
         # super(DistributedHierKVHVDTrainer, self)._allreduce_grads()
+
+        print(self._update_on_kvstore)
 
         for i, param in enumerate(self._params):
             if param.grad_req != 'null':
