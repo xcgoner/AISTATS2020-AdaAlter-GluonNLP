@@ -154,7 +154,7 @@ train_data_stream, test_data_stream = \
      for segment in segments]
 vocab = train_data_stream.vocab
 ntokens = len(vocab)
-num_batches_per_epoch = 78000 * 4 // num_workers
+num_batches_per_epoch = 80000 * 4 // num_workers
 
 # Sampler for generating negative classes during training with importance sampling
 sampler = LogUniformSampler(ntokens, args.k)
