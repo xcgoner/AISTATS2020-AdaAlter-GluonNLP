@@ -40,6 +40,8 @@ class DistributedRspTrainer(mx.gluon.Trainer):
 
         super(DistributedRspTrainer, self).__init__(
             params, optimizer, optimizer_params=optimizer_params, kvstore=None, update_on_kvstore = False)
+        
+        self._update_on_kvstore = False
 
         self._hvd_param_buf = {}
         self._sdtype = sdtype

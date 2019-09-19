@@ -32,49 +32,67 @@ import horovod.mxnet as hvd
 from horovod.mxnet.mpi_ops import allreduce, allreduce_
 
 class DistributedHierLocalKVHVDTrainer(mx.gluon.Trainer):
-    def __init__(self, params, optimizer, optimizer_params=None, sdtype='float32'):
+    def __init__(self, params, optimizer, optimizer_params=None, local_sgd_interval=0):
 
         super(DistributedHierLocalKVHVDTrainer, self).__init__(
             params, optimizer, optimizer_params=optimizer_params, kvstore='device', update_on_kvstore = False)
 
-        self._hvd_param_buf = {}
-        self._sdtype = sdtype
-        if sdtype == 'float32':
-            self._dtype_mismatch = False
-        else:
-            self._dtype_mismatch = True
+        self._local_sgd_interval = local_sgd_interval
 
-    def _allreduce_grads(self):
-        # super(DistributedHierKVHVDTrainer, self)._allreduce_grads()
+    def step(self, batch_size, ignore_stale_grad=False):
+        """Makes one step of parameter update. Should be called after
+        `autograd.backward()` and outside of `record()` scope.
+        For normal parameter updates, `step()` should be used, which internally calls
+        `allreduce_grads()` and then `update()`. However, if you need to get the reduced
+        gradients to perform certain transformation, such as in gradient clipping, then
+        you may want to manually call `allreduce_grads()` and `update()` separately.
+        Parameters
+        ----------
+        batch_size : int
+            Batch size of data processed. Gradient will be normalized by `1/batch_size`.
+            Set this to 1 if you normalized loss manually with `loss = mean(loss)`.
+        ignore_stale_grad : bool, optional, default=False
+            If true, ignores Parameters with stale gradient (gradient that has not
+            been updated by `backward` after last step) and skip update.
+        """
+        rescale_grad = self._scale / batch_size
+        self._check_and_rescale_grad(rescale_grad)
 
+        if not self._kv_initialized:
+            self._init_kvstore()
+        if self._params_to_init:
+            self._init_params()
+
+        self._allreduce_grads()
+
+        self._update(ignore_stale_grad)
+
+        if self._local_sgd > 1:
+            # local sgd
+            self._local_sgd_counter += 1
+            if self._local_sgd_counter == self._local_sgd:
+                self._local_sgd_counter = 0
+                # synchronization
+                self.allreduce_params()
+                self.allreduce_states()
+                # indicate that the parameters are synchronized in the current iteration
+                return True
+            return False
+        return True
+
+    def allreduce_params(self):
+        """For each parameter, reduce the parameters from different contexts.
+        Should be called after `autograd.backward()`, outside of `record()` scope,
+        and before `trainer.update()`.
+        For normal parameter updates, `step()` should be used, which internally calls
+        `allreduce_grads()` and then `update()`. However, if you need to get the reduced
+        gradients to perform certain transformation, such as in gradient clipping, then
+        you may want to manually call `allreduce_grads()` and `update()` separately.
+        """
         for i, param in enumerate(self._params):
             if param.grad_req != 'null':
-                reduce_ind = i % len(param.list_grad())
-                self._kvstore.push(i, param.list_grad(), priority=-i)
-                # TODO(xcong) allreduce the buffer, avoid the extra copy in kvstore.pull
-                self._kvstore.pull(i, [param.list_grad()[reduce_ind]], priority=-i)
-
-                # allreduce between processes
-                if param.list_grad()[reduce_ind].stype == 'default':
-                    allreduce_(param.list_grad()[reduce_ind], average=True,
-                               name=str(i), priority=-i)
-                else:
-                    if i not in self._hvd_param_buf:
-                        self._hvd_param_buf[i] = mx.nd.zeros(param.list_grad()[reduce_ind].shape, param.list_grad()[reduce_ind].context, dtype=self._sdtype)
-                    param_dense = self._hvd_param_buf[i]
-                    if self._dtype_mismatch:
-                        param_dense[:] = param.list_grad()[reduce_ind].tostype('default')
-                    else:
-                        mx.nd.sparse.cast_storage(param.list_grad()[reduce_ind], 'default', out=param_dense)
-                    allreduce_(param_dense, average=True,
-                                name=str(i), priority=-i)
-
-                    if self._dtype_mismatch:
-                        param.list_grad()[reduce_ind][:] = param_dense.tostype('row_sparse')
-                    else:
-                        mx.nd.sparse.cast_storage(param_dense, 'row_sparse', out=param.list_grad()[reduce_ind])
-
-                # local broadcast
-                for j in range(len(param.list_grad())):
-                    if j != reduce_ind:
-                        param.list_grad()[reduce_ind].copyto(param.list_grad()[j])
+                hvd.allreduce_(param.list_data()[0], average=True, 
+                                       name=str(i), priority=-i)
+                # param.list_data()[0] /= hvd.size()
+                for j in range(1, len(param.list_data())):
+                    param.list_data()[0].copyto(param.list_data()[j])
