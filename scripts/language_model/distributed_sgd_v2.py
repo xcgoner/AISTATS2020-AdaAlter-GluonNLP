@@ -37,6 +37,8 @@ class DistributedHierKVHVDTrainer(mx.gluon.Trainer):
         super(DistributedHierKVHVDTrainer, self).__init__(
             params, optimizer, optimizer_params=optimizer_params)
 
+        # this method is wrong, since update_on_kvstore == True
+
         self._hvd_param_buf = {}
         self._sdtype = sdtype
         if sdtype == 'float32':

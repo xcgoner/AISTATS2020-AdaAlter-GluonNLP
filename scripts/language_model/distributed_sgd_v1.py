@@ -39,7 +39,7 @@ class DistributedRspTrainer(mx.gluon.Trainer):
                           "as its optimizer. We have unwrapped it for you.")
 
         super(DistributedRspTrainer, self).__init__(
-            params, optimizer, optimizer_params=optimizer_params, kvstore='local')
+            params, optimizer, optimizer_params=optimizer_params, kvstore=None, update_on_kvstore = False)
 
         self._hvd_param_buf = {}
         self._sdtype = sdtype
@@ -49,7 +49,8 @@ class DistributedRspTrainer(mx.gluon.Trainer):
             self._dtype_mismatch = True
 
     def _allreduce_grads(self):
-        super(DistributedRspTrainer, self)._allreduce_grads()
+        # super(DistributedRspTrainer, self)._allreduce_grads()
+        print(self._update_on_kvstore)
         for i, param in enumerate(self._params):
             if param.grad_req != 'null':
                 if param.list_grad()[0].stype == 'default':
