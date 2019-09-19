@@ -50,7 +50,7 @@ class DistributedRspTrainer(mx.gluon.Trainer):
 
     def _allreduce_grads(self):
         # super(DistributedRspTrainer, self)._allreduce_grads()
-        print(self._update_on_kvstore)
+        # print(self._update_on_kvstore)
         for i, param in enumerate(self._params):
             if param.grad_req != 'null':
                 if param.list_grad()[0].stype == 'default':
