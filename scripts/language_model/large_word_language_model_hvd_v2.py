@@ -324,7 +324,7 @@ def train():
                     print('[Epoch %d Batch %d] loss %.2f, ppl %.2f, '
                         'throughput %.2f samples/s'
                         %(epoch, nbatch, cur_L, ppl,
-                            train_batch_size*args.log_interval/(time.time()-start_log_interval_time)))
+                            num_workers * train_batch_size*args.log_interval/(time.time()-start_log_interval_time)))
                 total_L = 0.0
                 start_log_interval_time = time.time()
                 sys.stdout.flush()
