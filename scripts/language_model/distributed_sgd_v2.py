@@ -33,10 +33,6 @@ from horovod.mxnet.mpi_ops import allreduce, allreduce_
 
 class DistributedHierKVHVDTrainer(mx.gluon.Trainer):
     def __init__(self, params, optimizer, optimizer_params=None, sdtype='float32'):
-        if isinstance(optimizer, DistributedRspTrainer):
-            optimizer = optimizer._optimizer
-            warnings.warn("DistributedRspTrainer does not take DistributedOptimizer "
-                          "as its optimizer. We have unwrapped it for you.")
 
         super(DistributedHierKVHVDTrainer, self).__init__(
             params, optimizer, optimizer_params=optimizer_params, kvstore='device')

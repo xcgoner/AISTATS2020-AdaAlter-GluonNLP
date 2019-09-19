@@ -386,7 +386,7 @@ def test(data_stream, batch_size, ctx=None):
         if nbatch % args.log_interval == 0:
             avg_scalar = float(avg.asscalar())
             ppl = math.exp(avg_scalar)
-            throughput = batch_size*args.log_interval/(time.time()-start_time)
+            throughput = batch_size*args.log_interval/(time.time()-start_time) * num_workers
             print('Evaluation batch %d: test loss %.2f, test ppl %.2f, '
                   'throughput = %.2f samples/s'%(nbatch, avg_scalar, ppl, throughput))
             start_time = time.time()
