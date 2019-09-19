@@ -31,11 +31,11 @@ import math
 import horovod.mxnet as hvd
 from horovod.mxnet.mpi_ops import allreduce, allreduce_
 
-class DistributedHierKVHVDTrainer(mx.gluon.Trainer):
+class DistributedHierLocalKVHVDTrainer(mx.gluon.Trainer):
     def __init__(self, params, optimizer, optimizer_params=None, sdtype='float32'):
 
-        super(DistributedHierKVHVDTrainer, self).__init__(
-            params, optimizer, optimizer_params=optimizer_params, kvstore='local', update_on_kvstore = False)
+        super(DistributedHierLocalKVHVDTrainer, self).__init__(
+            params, optimizer, optimizer_params=optimizer_params, kvstore='device', update_on_kvstore = False)
 
         self._hvd_param_buf = {}
         self._sdtype = sdtype
