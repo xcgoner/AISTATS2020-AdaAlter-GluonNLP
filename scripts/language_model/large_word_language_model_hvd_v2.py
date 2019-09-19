@@ -232,7 +232,8 @@ eval_model = nlp.model.language_model.BigRNN(ntokens, args.emsize, args.nhid,
 model = nlp.model.language_model.train.BigRNN(ntokens, args.emsize, args.nhid,
                                               args.nlayers, args.nproj, args.k,
                                               embed_dropout=args.dropout,
-                                              encode_dropout=args.dropout)
+                                              encode_dropout=args.dropout, 
+                                              sparse_weight=False)
 loss = gluon.loss.SoftmaxCrossEntropyLoss()
 
 ###############################################################################
