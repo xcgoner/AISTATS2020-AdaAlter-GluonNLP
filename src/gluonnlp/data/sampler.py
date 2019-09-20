@@ -533,3 +533,33 @@ class SplitSampler(Sampler):
 
     def __len__(self):
         return self._end - self._start
+
+class SplitSamplerV2(Sampler):
+    """Split the dataset into `num_parts` parts and randomly sample from the part
+    with index `part_index`.
+
+    The data is randomly shuffled at each iteration within each partition.
+
+    Parameters
+    ----------
+    length: int
+      Number of examples in the dataset
+    num_parts: int
+      Number of partitions which the data is split into
+    part_index: int
+      The index of the part to read from
+    """
+    def __init__(self, length, num_parts=1, part_index=0):
+        # Compute the length of each partition
+        part_len = int(math.ceil(1.0 * length / num_parts))
+        if (part_len-1) * num_parts + part_index >= length:
+            part_len -= 1
+        self._indices = [i*num_parts+part_index for i in range(part_len)]
+        print(self._indices)
+
+    def __iter__(self):
+        random.shuffle(self._indices)
+        return iter(self._indices)
+
+    def __len__(self):
+        return len(self._indices)

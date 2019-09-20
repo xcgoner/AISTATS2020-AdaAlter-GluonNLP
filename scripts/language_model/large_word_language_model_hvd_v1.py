@@ -148,7 +148,7 @@ ctx = mx.gpu(local_rank)
 # Data stream
 ###############################################################################
 num_files = 99
-split_sampler = nlp.data.SplitSampler(num_files, num_parts=num_workers, part_index=rank)
+split_sampler = nlp.data.SplitSamplerV2(num_files, num_parts=num_workers, part_index=rank)
 train_data_stream, test_data_stream = \
     [nlp.data.GBWStream(segment=segment, skip_empty=True, bos=None, eos='<eos>', file_sampler=split_sampler)
      for segment in segments]
