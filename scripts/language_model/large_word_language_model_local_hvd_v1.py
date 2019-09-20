@@ -287,17 +287,15 @@ def train():
 
             ls_sum = mx.nd.sum(ls)
 
-            total_L += ls_sum.asscalar() / args.bptt
+            total_L += ls_sum / args.bptt
 
             # total_L += mx.nd.sum(ls).asscalar() / args.bptt
 
             if nbatch % args.log_interval == 0:
 
-                ls_sum = mx.nd.array([np.asscalar(total_L)])
-                hvd.allreduce_(ls_sum, average=True, name='ls', priority=-9999)
-                total_L = ls_sum.asscalar()
+                hvd.allreduce_(total_L, average=True, name='ls', priority=-9999)
 
-                cur_L = total_L / args.log_interval
+                cur_L = total_L.asscalar() / args.log_interval
                 ppl = math.exp(cur_L) if cur_L < 100 else float('inf')
                 if rank == 0:
                     logging.info('[Epoch %d Batch %d] loss %.2f, ppl %.2f, '
