@@ -51,6 +51,7 @@ class LocalAdaAlter(Optimizer):
     def __init__(self, eps=1e-7, **kwargs):
         super(LocalAdaAlter, self).__init__(**kwargs)
         self.float_stable_eps = eps
+        self._local_sgd_counter = 0
 
     def create_state(self, index, weight):
         return (zeros(weight.shape, weight.context, stype=weight.stype),   # history
@@ -68,7 +69,7 @@ class LocalAdaAlter(Optimizer):
         cache_history = state[0]
 
         if is_sparse:
-            kwargs = {'epsilon': self.float_stable_eps,
+            kwargs = {'epsilon': self.float_stable_eps * self._local_sgd_counter,
                       'rescale_grad': self.rescale_grad}
             if self.clip_gradient:
                 kwargs['clip_gradient'] = self.clip_gradient
@@ -78,7 +79,7 @@ class LocalAdaAlter(Optimizer):
             grad[:] = grad * self.rescale_grad
             if self.clip_gradient is not None:
                 grad[:] = clip(grad, -self.clip_gradient, self.clip_gradient)
-            div = grad / sqrt(history + self.float_stable_eps)
+            div = grad / sqrt(history + self.float_stable_eps * self._local_sgd_counter)
             weight[:] += (div + weight * wd) * -lr
 
             cache_history[:] += square(grad)

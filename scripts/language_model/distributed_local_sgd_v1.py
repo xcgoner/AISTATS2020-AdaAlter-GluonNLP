@@ -71,7 +71,8 @@ class DistributedHierLocalHVDTrainer(mx.gluon.Trainer):
 
         # self._allreduce_grads()
 
-        print(self._optimizer.float_stable_eps)
+        # print(self._optimizer.float_stable_eps)
+        self._optimizer._local_sgd_counter = math.sqrt(self._local_sgd_counter + 1.0)
 
         self._update(ignore_stale_grad)
 
