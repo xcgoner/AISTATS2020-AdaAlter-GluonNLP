@@ -23,7 +23,7 @@ from mxnet.ndarray import zeros, NDArray
 from mxnet.ndarray import square, power, sqrt, maximum, minimum, clip
 from mxnet.ndarray import sparse
 
-__all__ = ['AdaAlter']
+__all__ = ['LocalAdaAlter']
 
 
 @register
