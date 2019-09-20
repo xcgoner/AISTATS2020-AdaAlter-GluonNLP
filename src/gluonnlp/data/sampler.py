@@ -20,7 +20,8 @@
 (e.g. in the order sorted by length). They can also be used to perform bucketing
 for speeding up the processing of variable-length sequences."""
 __all__ = ['ConstWidthBucket', 'LinearWidthBucket', 'ExpWidthBucket',
-           'SortedSampler', 'FixedBucketSampler', 'SortedBucketSampler', 'SplitSampler']
+           'SortedSampler', 'FixedBucketSampler', 'SortedBucketSampler', 'SplitSampler', 
+           'SplitSamplerV2']
 
 import math
 import warnings
