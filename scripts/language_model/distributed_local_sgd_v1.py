@@ -32,12 +32,14 @@ import horovod.mxnet as hvd
 from horovod.mxnet.mpi_ops import allreduce, allreduce_
 
 class DistributedHierLocalKVHVDTrainer(mx.gluon.Trainer):
+    # only works with LocalAdaAlter
     def __init__(self, params, optimizer, optimizer_params=None, local_sgd_interval=0):
 
         super(DistributedHierLocalKVHVDTrainer, self).__init__(
-            params, optimizer, optimizer_params=optimizer_params, kvstore='device', update_on_kvstore = False)
+            params, optimizer, optimizer_params=optimizer_params)
 
         self._local_sgd_interval = local_sgd_interval
+        self._local_sgd_counter = 0
 
     def step(self, batch_size, ignore_stale_grad=False):
         """Makes one step of parameter update. Should be called after
@@ -67,10 +69,10 @@ class DistributedHierLocalKVHVDTrainer(mx.gluon.Trainer):
 
         self._update(ignore_stale_grad)
 
-        if self._local_sgd > 1:
+        if self._local_sgd_interval > 1:
             # local sgd
             self._local_sgd_counter += 1
-            if self._local_sgd_counter == self._local_sgd:
+            if self._local_sgd_counter == self._local_sgd_interval:
                 self._local_sgd_counter = 0
                 # synchronization
                 self.allreduce_params()
@@ -96,3 +98,17 @@ class DistributedHierLocalKVHVDTrainer(mx.gluon.Trainer):
                 # param.list_data()[0] /= hvd.size()
                 for j in range(1, len(param.list_data())):
                     param.list_data()[0].copyto(param.list_data()[j])
+
+    def allreduce_states(self):
+        for i, param in reversed(list(enumerate(self._params))):
+            if param.grad_req != 'null':
+                state_arrays = [updater.states[i][1] for updater in self._updaters]
+                idx = i+len(self._params)
+                if param._stype == 'default':
+                    hvd.allreduce_(state_arrays[0], average=True, 
+                                   name=str(idx), priority=i-len(self._params)*2)
+                    # state_arrays[0] /= hvd.size()
+                    for j in range(1, len(state_arrays)):
+                        state_arrays[0].copyto(state_arrays[j])
+                else:
+                    raise ValueError("Cannot pull row_sparse parameters for local SGD")
