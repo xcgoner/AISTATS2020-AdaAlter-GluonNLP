@@ -31,12 +31,14 @@ import math
 import horovod.mxnet as hvd
 from horovod.mxnet.mpi_ops import allreduce, allreduce_
 
-class DistributedHierLocalKVHVDTrainer(mx.gluon.Trainer):
+class DistributedHierLocalHVDTrainer(mx.gluon.Trainer):
     # only works with LocalAdaAlter
-    def __init__(self, params, optimizer, optimizer_params=None, local_sgd_interval=0):
+    def __init__(self, params, optimizer, optimizer_params=None, local_sgd_interval=1):
 
-        super(DistributedHierLocalKVHVDTrainer, self).__init__(
-            params, optimizer, optimizer_params=optimizer_params)
+        super(DistributedHierLocalHVDTrainer, self).__init__(
+            params, optimizer, optimizer_params=optimizer_params, kvstore=None, update_on_kvstore = False)
+        
+        self._update_on_kvstore = False
 
         self._local_sgd_interval = local_sgd_interval
         self._local_sgd_counter = 0
@@ -65,7 +67,7 @@ class DistributedHierLocalKVHVDTrainer(mx.gluon.Trainer):
         if self._params_to_init:
             self._init_params()
 
-        self._allreduce_grads()
+        # self._allreduce_grads()
 
         self._update(ignore_stale_grad)
 
@@ -102,13 +104,11 @@ class DistributedHierLocalKVHVDTrainer(mx.gluon.Trainer):
     def allreduce_states(self):
         for i, param in reversed(list(enumerate(self._params))):
             if param.grad_req != 'null':
-                state_arrays = [updater.states[i][1] for updater in self._updaters]
+                state_array = self._updaters[0].states[i][1]
                 idx = i+len(self._params)
                 if param._stype == 'default':
-                    hvd.allreduce_(state_arrays[0], average=True, 
+                    hvd.allreduce_(state_array, average=True, 
                                    name=str(idx), priority=i-len(self._params)*2)
-                    # state_arrays[0] /= hvd.size()
-                    for j in range(1, len(state_arrays)):
-                        state_arrays[0].copyto(state_arrays[j])
+                    self._updaters[0].states[i][0][:] = state_array
                 else:
                     raise ValueError("Cannot pull row_sparse parameters for local SGD")
