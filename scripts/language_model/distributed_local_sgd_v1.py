@@ -43,7 +43,7 @@ class DistributedHierLocalHVDTrainer(mx.gluon.Trainer):
         self._local_sgd_interval = local_sgd_interval
         self._local_sgd_counter = 0
 
-        print(self._local_sgd_interval)
+        # print(self._local_sgd_interval)
 
     def step(self, batch_size, ignore_stale_grad=False):
         """Makes one step of parameter update. Should be called after
