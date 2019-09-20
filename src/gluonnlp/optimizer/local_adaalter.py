@@ -67,18 +67,18 @@ class LocalAdaAlter(Optimizer):
         history = state[0]
         cache_history = state[0]
 
-        # if is_sparse:
-        #     kwargs = {'epsilon': self.float_stable_eps,
-        #               'rescale_grad': self.rescale_grad}
-        #     if self.clip_gradient:
-        #         kwargs['clip_gradient'] = self.clip_gradient
-        #     sparse.adaalter_update(weight, grad, history, out=weight, lr=lr, wd=wd, **kwargs)
-        #     # raise NotImplementedError('AdaAlter has not been implemented for sparse nd')
-        # else:
-        grad[:] = grad * self.rescale_grad
-        if self.clip_gradient is not None:
-            grad[:] = clip(grad, -self.clip_gradient, self.clip_gradient)
-        div = grad / sqrt(history + self.float_stable_eps)
-        weight[:] += (div + weight * wd) * -lr
+        if is_sparse:
+            kwargs = {'epsilon': self.float_stable_eps,
+                      'rescale_grad': self.rescale_grad}
+            if self.clip_gradient:
+                kwargs['clip_gradient'] = self.clip_gradient
+            sparse.adaalter_update(weight, grad, cache_history, out=weight, lr=lr, wd=wd, **kwargs)
+            # raise NotImplementedError('AdaAlter has not been implemented for sparse nd')
+        else:
+            grad[:] = grad * self.rescale_grad
+            if self.clip_gradient is not None:
+                grad[:] = clip(grad, -self.clip_gradient, self.clip_gradient)
+            div = grad / sqrt(history + self.float_stable_eps)
+            weight[:] += (div + weight * wd) * -lr
 
-        cache_history[:] += square(grad)
+            cache_history[:] += square(grad)
