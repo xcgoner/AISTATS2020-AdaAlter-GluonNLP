@@ -72,7 +72,7 @@ class LocalAdaAlter(Optimizer):
                       'rescale_grad': self.rescale_grad}
             if self.clip_gradient:
                 kwargs['clip_gradient'] = self.clip_gradient
-            sparse.adaalter_update(weight, grad, cache_history, out=weight, lr=lr, wd=wd, **kwargs)
+            sparse.local_adaalter_update(weight, grad, history, cache_history, out=weight, lr=lr, wd=wd, **kwargs)
             # raise NotImplementedError('AdaAlter has not been implemented for sparse nd')
         else:
             grad[:] = grad * self.rescale_grad
