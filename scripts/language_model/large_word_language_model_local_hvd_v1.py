@@ -311,8 +311,10 @@ def train():
                 logging.info('Epoch %d took %.2f seconds.'%(epoch, end_epoch_time - start_epoch_time))
                 mx.nd.waitall()
                 checkpoint_name = '%s.%s'%(args.save, format(epoch, '02d'))
-                model.save_parameters(checkpoint_name)
-                trainer.save_states('%s.state'%args.save)
+                if rank == 0:
+                    model.save_parameters(checkpoint_name)
+                if rank == 1:
+                    trainer.save_states('%s.state'%args.save)
                 nbatch = 0
                 start_epoch_time = time.time()
                 epoch += 1
