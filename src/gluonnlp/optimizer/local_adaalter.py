@@ -51,6 +51,7 @@ class LocalAdaAlter(Optimizer):
     def __init__(self, eps=1e-7, **kwargs):
         super(LocalAdaAlter, self).__init__(**kwargs)
         self.float_stable_eps = eps
+        self._full_sync = False
 
     def create_state(self, index, weight):
         return (zeros(weight.shape, weight.context, stype=weight.stype),   # history
@@ -72,7 +73,10 @@ class LocalAdaAlter(Optimizer):
                       'rescale_grad': self.rescale_grad}
             if self.clip_gradient:
                 kwargs['clip_gradient'] = self.clip_gradient
-            sparse.local_adaalter_update(weight, grad, history, cache_history, out=weight, lr=lr, wd=wd, **kwargs)
+            if self._full_sync:
+                sparse.adaalter_update(weight, grad, history, out=weight, lr=lr, wd=wd, **kwargs)
+            else:
+                sparse.local_adaalter_update(weight, grad, history, cache_history, out=weight, lr=lr, wd=wd, **kwargs)
             # raise NotImplementedError('AdaAlter has not been implemented for sparse nd')
         else:
             grad[:] = grad * self.rescale_grad
@@ -81,4 +85,7 @@ class LocalAdaAlter(Optimizer):
             div = grad / sqrt(history + self.float_stable_eps)
             weight[:] += (div + weight * wd) * -lr
 
-            cache_history[:] += square(grad)
+            if self._full_sync:
+                history[:] += square(grad)
+            else:
+                cache_history[:] += square(grad)
