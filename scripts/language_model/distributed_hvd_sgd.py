@@ -44,11 +44,6 @@ class DistributedRspTrainer(mx.gluon.Trainer):
         self._update_on_kvstore = False
 
         self._hvd_param_buf = {}
-        for i, param in enumerate(self._params):
-            if param.grad_req != 'null':
-                if param.list_grad()[0].stype != 'default':
-                    if i not in self._hvd_param_buf:
-                        self._hvd_param_buf[i] = mx.nd.zeros(param.list_grad()[0].shape, param.list_grad()[0].context, dtype=param.list_grad()[0].dtype)
 
     def _allreduce_grads(self):
         for i, param in enumerate(self._params):
@@ -57,6 +52,8 @@ class DistributedRspTrainer(mx.gluon.Trainer):
                     allreduce_(param.list_grad()[0], average=True,
                                name=str(i), priority=-i)
                 else:
+                    if i not in self._hvd_param_buf:
+                        self._hvd_param_buf[i] = mx.nd.zeros(param.list_grad()[0].shape, param.list_grad()[0].context, dtype=param.list_grad()[0].dtype)
                     param_dense = self._hvd_param_buf[i]
                     mx.nd.sparse.cast_storage(param.list_grad()[0], 'default', out=param_dense)
                     allreduce_(param_dense, average=True,
