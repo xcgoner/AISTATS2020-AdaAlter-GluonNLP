@@ -134,6 +134,8 @@ class DistributedHierLocalHVDTrainer(mx.gluon.Trainer):
                     raise ValueError("Cannot pull row_sparse parameters for local SGD")
 
     def init_states(self):
+        self._hvd_param_buf.clear()
+        mx.nd.waitall()
         for i, param in reversed(list(enumerate(self._params))):
             if param.grad_req != 'null':
                 self._updaters[0].states[i][1][:] = self._updaters[0].states[i][0]
