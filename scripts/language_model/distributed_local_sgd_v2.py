@@ -136,6 +136,8 @@ class DistributedHierLocalHVDTrainer(mx.gluon.Trainer):
     def init_states(self):
         # self._hvd_param_buf = {}
         mx.nd.waitall()
+        self._hvd_param_buf.clear()
+        mx.nd.waitall()
         for i, param in reversed(list(enumerate(self._params))):
             if param.grad_req != 'null':
                 self._updaters[0].states[i] = (self._updaters[0].states[i][0], self._updaters[0].states[i][0].copy())
