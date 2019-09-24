@@ -264,8 +264,8 @@ def train():
                 current_lr = new_lr
             
             if step_num == args.warmup_steps + 1:
-                # trainer._local_sgd_interval = args.local_sgd_interval
-                # trainer._optimizer._full_sync = False
+                trainer._local_sgd_interval = args.local_sgd_interval
+                trainer._optimizer._full_sync = False
                 trainer.init_states()
 
             hidden = detach(hidden)
