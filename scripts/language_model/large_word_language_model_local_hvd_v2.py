@@ -220,7 +220,7 @@ def train():
     # trainer = gluon.Trainer(model.collect_params(), args.optimizer, trainer_params)
     # fully sync at the beginning
     trainer = DistributedHierLocalHVDTrainer(model.collect_params(), args.optimizer, trainer_params, local_sgd_interval = 0)
-    self._optimizer._full_sync = True
+    trainer._optimizer._full_sync = True
 
 
     if args.from_epoch:
@@ -265,7 +265,7 @@ def train():
             
             if step_num == args.warmup_steps + 1:
                 trainer._local_sgd_interval = args.local_sgd_interval
-                self._optimizer._full_sync = False
+                trainer._optimizer._full_sync = False
                 trainer.init_states()
 
             hidden = detach(hidden)
