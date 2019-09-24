@@ -72,10 +72,10 @@ class LocalAdaAlter(Optimizer):
         history = state[0]
         cache_history = state[0]
 
-        if self._full_sync:
-            print("full sync")
-        else:
-            print("local sgd")
+        # if self._full_sync:
+        #     print("full sync")
+        # else:
+        #     print("local sgd")
 
         if is_sparse:
             kwargs = {'epsilon': self.float_stable_eps,
