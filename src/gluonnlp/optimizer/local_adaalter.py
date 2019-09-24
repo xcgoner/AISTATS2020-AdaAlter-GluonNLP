@@ -54,8 +54,12 @@ class LocalAdaAlter(Optimizer):
         self._full_sync = False
 
     def create_state(self, index, weight):
-        return (zeros(weight.shape, weight.context, stype=weight.stype),   # history
-                zeros(weight.shape, weight.context, stype=weight.stype))
+        if self._full_sync:
+            return (zeros(weight.shape, weight.context, stype=weight.stype),   # history
+                    None)
+        else:
+            return (zeros(weight.shape, weight.context, stype=weight.stype),   # history
+                    zeros(weight.shape, weight.context, stype=weight.stype))
 
     def update(self, index, weight, grad, state):
         assert(isinstance(weight, NDArray))
