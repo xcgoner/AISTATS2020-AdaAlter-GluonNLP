@@ -102,6 +102,8 @@ parser.add_argument('--eval-only', action='store_true',
                     help='Whether to only run evaluation for the trained model')
 parser.add_argument('--warmup-steps', type=int, default=1,
                     help='number of steps for warmup')
+parser.add_argument('--rescale-state', type=float, default=1.0,
+                    help='rescale of state')
 args = parser.parse_args()
 
 segments = ['train', 'test']
@@ -219,7 +221,7 @@ def train():
     trainer_params = {'learning_rate': args.lr, 'wd': 0, 'eps': args.eps}
     # trainer = gluon.Trainer(model.collect_params(), args.optimizer, trainer_params)
     # fully sync at the beginning
-    trainer = DistributedHierLocalHVDTrainer(model.collect_params(), args.optimizer, trainer_params, local_sgd_interval = 0, rescale_state = 1.0/math.sqrt(num_workers*1.0))
+    trainer = DistributedHierLocalHVDTrainer(model.collect_params(), args.optimizer, trainer_params, local_sgd_interval = 0, rescale_state = args.rescale_state)
     trainer._optimizer._full_sync = True
 
 
