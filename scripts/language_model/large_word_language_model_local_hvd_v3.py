@@ -50,7 +50,7 @@ import gluonnlp as nlp
 from gluonnlp.utils import Parallel, Parallelizable
 from sampler import LogUniformSampler
 
-from distributed_local_sgd_v2 import DistributedHierLocalHVDTrainer
+from distributed_local_sgd_v3 import DistributedHierLocalHVDTrainer
 
 curr_path = os.path.dirname(os.path.abspath(os.path.expanduser(__file__)))
 sys.path.append(os.path.join(curr_path, '..', '..'))
