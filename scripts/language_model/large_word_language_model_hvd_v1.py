@@ -154,7 +154,7 @@ train_data_stream, test_data_stream = \
      for segment in segments]
 vocab = train_data_stream.vocab
 ntokens = len(vocab)
-num_batches_per_epoch = 80000 * 4 // num_workers
+num_batches_per_epoch = 80000 * 4 * 128 // (num_workers * args.batch_size)
 
 # Sampler for generating negative classes during training with importance sampling
 sampler = LogUniformSampler(ntokens, args.k)
@@ -308,8 +308,10 @@ def train():
                 logging.info('Epoch %d took %.2f seconds.'%(epoch, end_epoch_time - start_epoch_time))
                 mx.nd.waitall()
                 checkpoint_name = '%s.%s'%(args.save, format(epoch, '02d'))
-                model.save_parameters(checkpoint_name)
-                trainer.save_states('%s.state'%args.save)
+                if local_rank == 0:
+                    model.save_parameters(checkpoint_name)
+                if local_rank == 1:
+                    trainer.save_states('%s.state'%args.save)
                 nbatch = 0
                 start_epoch_time = time.time()
                 epoch += 1
