@@ -24,5 +24,6 @@ from .bert_adam import *
 from .lamb import *
 from .adaalter import *
 from .local_adaalter import *
+from .local_adaalter_v2 import *
 
-__all__ = bert_adam.__all__ + lamb.__all__ + adaalter.__all__ + local_adaalter.__all__ 
+__all__ = bert_adam.__all__ + lamb.__all__ + adaalter.__all__ + local_adaalter.__all__ + local_adaalter_v2.__all__ 

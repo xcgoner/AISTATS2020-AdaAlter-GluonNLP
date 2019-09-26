@@ -23,12 +23,12 @@ from mxnet.ndarray import zeros, NDArray
 from mxnet.ndarray import square, power, sqrt, maximum, minimum, clip
 from mxnet.ndarray import sparse
 
-__all__ = ['LocalAdaAlter']
+__all__ = ['LocalAdaAlterV2']
 
 
 @register
-class LocalAdaAlter(Optimizer):
-    """LocalAdaAlter optimizer.
+class LocalAdaAlterV2(Optimizer):
+    """LocalAdaAlterV2 optimizer.
     TODO(xcong): update the description
     This class implements the AdaGrad optimizer described in *Adaptive Subgradient
     Methods for Online Learning and Stochastic Optimization*, and available at
@@ -49,7 +49,7 @@ class LocalAdaAlter(Optimizer):
         Initial value of the history accumulator. Avoids division by 0.
     """
     def __init__(self, eps=1e-7, **kwargs):
-        super(LocalAdaAlter, self).__init__(**kwargs)
+        super(LocalAdaAlterV2, self).__init__(**kwargs)
         self.float_stable_eps = eps
         self._full_sync = False
 
@@ -97,4 +97,4 @@ class LocalAdaAlter(Optimizer):
             if self._full_sync:
                 history[:] += square(grad)
             else:
-                cache_history[:] += square(grad)
+                cache_history[:] += grad
