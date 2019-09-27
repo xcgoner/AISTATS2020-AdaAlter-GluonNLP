@@ -85,7 +85,7 @@ class LocalAdaAlterV2(Optimizer):
             if self._full_sync:
                 sparse.adaalter_update(weight, grad, history, out=weight, lr=lr, wd=wd, **kwargs)
             else:
-                sparse.local_adaalterv2_update(weight, grad, history, cache_history, out=weight, lr=lr, wd=wd, **kwargs)
+                sparse.local_adaalter_update(weight, grad, history, cache_history, out=weight, lr=lr, wd=wd, **kwargs)
             # raise NotImplementedError('AdaAlter has not been implemented for sparse nd')
         else:
             grad[:] = grad * self.rescale_grad
