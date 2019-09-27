@@ -129,7 +129,7 @@ class DistributedHierLocalHVDTrainer(mx.gluon.Trainer):
                 if param._stype == 'default':
                     hvd.allreduce_(state_array, average=True, 
                                    name=str(idx), priority=i-len(self._params)*2)
-                    self._updaters[0].states[i][0][:] = state_array
+                    self._updaters[0].states[i][0][:] = mx.nd.square(state_array)
                     # self._updaters[0].states[i][0][:] += mx.nd.square(state_array)
                     # state_array[:] = 0
                 else:
