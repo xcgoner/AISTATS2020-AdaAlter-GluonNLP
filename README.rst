@@ -1,5 +1,18 @@
 .. raw:: html
 
+   <h3 align="center">
+
+This is part of the python implementation of the paper "Local AdaAlter: Communication-Efficient Stochastic Gradient Descent with Adaptive Learning Rates", by anonymous authors.
+
+This repository is a modified version of MXNet
+
+.. raw:: html
+
+   </h3>
+   <hr>
+
+.. raw:: html
+
    <a href="http://gluon-nlp.mxnet.io/master/index.html"><p align="center"><img width="25%" src="https://github.com/dmlc/gluon-nlp/raw/be3bc8852155e935d68d397e0743715c54c3ce76/docs/_static/gluon_s2.png" /></a>
    </p>
 
@@ -14,11 +27,6 @@ GluonNLP: Your Choice of Deep Learning for NLP
    </h3>
 
 .. raw:: html
-
-### This is part of the python implementation of the paper "Local AdaAlter: Communication-Efficient Stochastic Gradient Descent with Adaptive Learning Rates", by anonymous authors.
-
-This repository is a modified version of MXNet
------------------
 
    <a href='http://ci.mxnet.io/job/gluon-nlp/job/master/'><img src='https://img.shields.io/badge/python-3.6%2C3.7-blue.svg'></a>
    <a href='https://codecov.io/gh/dmlc/gluon-nlp'><img src='https://codecov.io/gh/dmlc/gluon-nlp/branch/master/graph/badge.svg'></a>
