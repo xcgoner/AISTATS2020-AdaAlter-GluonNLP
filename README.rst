@@ -15,6 +15,11 @@ GluonNLP: Your Choice of Deep Learning for NLP
 
 .. raw:: html
 
+### This is part of the python implementation of the paper "Local AdaAlter: Communication-Efficient Stochastic Gradient Descent with Adaptive Learning Rates", by anonymous authors.
+
+This repository is a modified version of MXNet
+-----------------
+
    <a href='http://ci.mxnet.io/job/gluon-nlp/job/master/'><img src='https://img.shields.io/badge/python-3.6%2C3.7-blue.svg'></a>
    <a href='https://codecov.io/gh/dmlc/gluon-nlp'><img src='https://codecov.io/gh/dmlc/gluon-nlp/branch/master/graph/badge.svg'></a>
    <a href='http://ci.mxnet.io/job/gluonnlp-py3-master-gpu-doc/job/master/'><img src='http://ci.mxnet.io/buildStatus/icon?job=gluonnlp-py3-master-gpu-doc%2Fmaster'></a>
