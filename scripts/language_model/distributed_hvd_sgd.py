@@ -32,7 +32,7 @@ import horovod.mxnet as hvd
 from horovod.mxnet.mpi_ops import allreduce, allreduce_
 
 class DistributedRspTrainer(mx.gluon.Trainer):
-    def __init__(self, params, optimizer, optimizer_params=None):
+    def __init__(self, params, optimizer, optimizer_params=None, sdtype='float32'):
         if isinstance(optimizer, DistributedRspTrainer):
             optimizer = optimizer._optimizer
             warnings.warn("DistributedRspTrainer does not take DistributedOptimizer "
@@ -44,8 +44,15 @@ class DistributedRspTrainer(mx.gluon.Trainer):
         self._update_on_kvstore = False
 
         self._hvd_param_buf = {}
+        self._sdtype = sdtype
+        if sdtype == 'float32':
+            self._dtype_mismatch = False
+        else:
+            self._dtype_mismatch = True
 
     def _allreduce_grads(self):
+        # super(DistributedRspTrainer, self)._allreduce_grads()
+        # print(self._kvstore)
         for i, param in enumerate(self._params):
             if param.grad_req != 'null':
                 if param.list_grad()[0].stype == 'default':
@@ -53,9 +60,21 @@ class DistributedRspTrainer(mx.gluon.Trainer):
                                name=str(i), priority=-i)
                 else:
                     if i not in self._hvd_param_buf:
-                        self._hvd_param_buf[i] = mx.nd.zeros(param.list_grad()[0].shape, param.list_grad()[0].context, dtype=param.list_grad()[0].dtype)
+                        self._hvd_param_buf[i] = mx.nd.zeros(param.list_grad()[0].shape, param.list_grad()[0].context, dtype=self._sdtype)
                     param_dense = self._hvd_param_buf[i]
-                    mx.nd.sparse.cast_storage(param.list_grad()[0], 'default', out=param_dense)
+                    if self._dtype_mismatch:
+                        param_dense[:] = param.list_grad()[0].tostype('default')
+                    else:
+                        mx.nd.sparse.cast_storage(param.list_grad()[0], 'default', out=param_dense)
                     allreduce_(param_dense, average=True,
                                 name=str(i), priority=-i)
-                    mx.nd.sparse.cast_storage(param_dense, 'row_sparse', out=param.list_grad()[0])
+                    # mx.nd.sparse.cast_storage(param_dense, 'row_sparse', out=param.list_grad()[0])
+
+        for i, param in enumerate(self._params):
+            if param.grad_req != 'null':
+                if param.list_grad()[0].stype != 'default':
+                    if i in self._hvd_param_buf:
+                        if self._dtype_mismatch:
+                            param.list_grad()[0][:] = self._hvd_param_buf[i].tostype('row_sparse')
+                        else:
+                            mx.nd.sparse.cast_storage(self._hvd_param_buf[i], 'row_sparse', out=param.list_grad()[0])

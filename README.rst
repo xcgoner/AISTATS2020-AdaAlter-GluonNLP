@@ -1,10 +1,10 @@
 .. raw:: html
 
-   <h3 align="center">
+   <h3 align="left">
 
 This is part of the python implementation of the paper "Local AdaAlter: Communication-Efficient Stochastic Gradient Descent with Adaptive Learning Rates", by anonymous authors.
 
-This repository is a modified version of MXNet
+This repository is a modified version of GluonNlp
 
 .. raw:: html
 

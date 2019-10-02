@@ -50,7 +50,7 @@ import gluonnlp as nlp
 from gluonnlp.utils import Parallel, Parallelizable
 from sampler import LogUniformSampler
 
-from distributed_local_sgd_v3 import DistributedHierLocalHVDTrainer
+from distributed_hvd_sgd import DistributedRspTrainer
 
 curr_path = os.path.dirname(os.path.abspath(os.path.expanduser(__file__)))
 sys.path.append(os.path.join(curr_path, '..', '..'))
@@ -92,8 +92,6 @@ parser.add_argument('--optimizer', type=str, default='adagrad',
                     help='optimizer')
 parser.add_argument('--lr', type=float, default=0.2,
                     help='initial learning rate')
-parser.add_argument('--local-sgd-interval', type=int, default=10,
-                    help='interval of local SGD')
 parser.add_argument('--clip', type=float, default=1.0,
                     help='gradient clipping by global norm.')
 parser.add_argument('--test-mode', action='store_true',
@@ -102,8 +100,6 @@ parser.add_argument('--eval-only', action='store_true',
                     help='Whether to only run evaluation for the trained model')
 parser.add_argument('--warmup-steps', type=int, default=1,
                     help='number of steps for warmup')
-parser.add_argument('--rescale-state', type=float, default=1.0,
-                    help='rescale of state')
 args = parser.parse_args()
 
 segments = ['train', 'test']
@@ -220,10 +216,7 @@ def train():
     model.initialize(mx.init.Xavier(factor_type='out'), ctx=ctx)
     trainer_params = {'learning_rate': args.lr, 'wd': 0, 'eps': args.eps}
     # trainer = gluon.Trainer(model.collect_params(), args.optimizer, trainer_params)
-    # fully sync at the beginning
-    trainer = DistributedHierLocalHVDTrainer(model.collect_params(), args.optimizer, trainer_params, local_sgd_interval = 0, rescale_state = args.rescale_state)
-    trainer._optimizer._full_sync = True
-
+    trainer = DistributedRspTrainer(model.collect_params(), args.optimizer, trainer_params, sdtype='float32')
 
     if args.from_epoch:
         from_epoch = args.from_epoch
@@ -264,11 +257,6 @@ def train():
                 new_lr = lr * step_num / args.warmup_steps
                 trainer.set_learning_rate(new_lr)
                 current_lr = new_lr
-            
-            if step_num == args.warmup_steps + 1:
-                trainer._local_sgd_interval = args.local_sgd_interval
-                trainer._optimizer._full_sync = False
-                trainer.init_states()
 
             hidden = detach(hidden)
 
@@ -297,15 +285,14 @@ def train():
 
             ls_sum = mx.nd.sum(ls)
 
-            total_L += ls_sum / args.bptt
+            hvd.allreduce_(ls_sum, average=True, name='ls', priority=-9999)
+
+            total_L += ls_sum.asscalar() / args.bptt
 
             # total_L += mx.nd.sum(ls).asscalar() / args.bptt
 
             if nbatch % args.log_interval == 0:
-
-                hvd.allreduce_(total_L, average=True, name='ls', priority=-9999)
-
-                cur_L = total_L.asscalar() / args.log_interval
+                cur_L = total_L / args.log_interval
                 ppl = math.exp(cur_L) if cur_L < 100 else float('inf')
                 if rank == 0:
                     logging.info('[Epoch %d Batch %d] loss %.2f, ppl %.2f, '
