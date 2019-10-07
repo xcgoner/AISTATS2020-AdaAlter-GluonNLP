@@ -1,4 +1,4 @@
-# Zeno
+# AdaAlter
 
 ### This is part of the python implementation of the paper "Local AdaAlter: Communication-Efficient Stochastic Gradient Descent with Adaptive Learning Rates", by anonymous authors.
 
